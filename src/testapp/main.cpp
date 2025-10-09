@@ -1,28 +1,22 @@
-#include <stdio.h>
-#include <endian.h>
+// testapp.cpp
+
+#include <iostream>
+#include <cstdint>
 #include <infiniband/verbs.h>
 
-int main(int argc, char *argv[])
-{
-	struct ibv_device **dev_list;
-	int num_devices, i;
-
-	dev_list = ibv_get_device_list(&num_devices);
-	if (!dev_list) {
-		perror("Failed to get IB devices list");
-		return 1;
-	}
-
-	printf("    %-16s\t   node GUID\n", "device");
-	printf("    %-16s\t----------------\n", "------");
-
-	for (i = 0; i < num_devices; ++i) {
-		printf("    %-16s\t%016llx\n",
-		       ibv_get_device_name(dev_list[i]),
-		       (unsigned long long) be64toh(ibv_get_device_guid(dev_list[i])));
-	}
-
-	ibv_free_device_list(dev_list);
-
-	return 0;
+int main(int argc, const char **argv) {
+  int num_devices = 0;
+  struct ibv_device **dev_list = ibv_get_device_list(&num_devices);
+  if (dev_list == nullptr) {
+    perror("Failed to get IB devices list!");
+    return -1;
+  }
+  for (int i = 0; i < num_devices; i++) {
+    const char *name = ibv_get_device_name(dev_list[i]);
+    std::uint64_t guid = be64toh(ibv_get_device_guid(dev_list[i]));
+    std::cout << "Device name: " << name << std::endl;
+    std::cout << "GUID: " << guid << std::endl;
+  }
+  ibv_free_device_list(dev_list);
+  return 0;
 }
