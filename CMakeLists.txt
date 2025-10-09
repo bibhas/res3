@@ -15,6 +15,9 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY
 # Helpful utility macros
 include("scripts/cmake/Utils.cmake")
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(IBVERBS REQUIRED libibverbs)
+
 #list(APPEND CMAKE_PREFIX_PATH "/home/ba466/vendors/dpdk/dpdk")
 #set(PcapPlusPlus_DIR "~/Sources/PcapPlusPlus/BUILT_HERE/lib/cmake/pcapplusplus/")
 #find_package(PcapPlusPlus REQUIRED)
