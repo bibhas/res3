@@ -1,0 +1,136 @@
+#!/usr/bin/env python3
+
+import os, pathlib, subprocess, shutil
+import fnmatch
+import pexpect
+import utils
+
+kPRESET_INFO_FILE = str(utils.project_source_dir_path() / "build" / ".PRESET")
+
+try:
+  import click
+except ImportError:
+  raise ImportError("`click` module is not installed! See requirements.txt.")
+
+
+@click.group()
+def res():
+  """
+    Research related automation utils.
+  """
+  pass
+
+
+@res.command()
+@click.argument("preset", default="ninja", required=False)
+def gen(preset):
+  """
+    Uses cmake to generate ninja files.
+  """
+  os.chdir(utils.project_source_dir_path())
+  resp : utils.InvocationResult = utils.invoke(
+    ["cmake", "--preset", preset, "."]
+  )
+  if resp.returncode == 0:
+    with open(kPRESET_INFO_FILE, "w+") as f:
+      f.writelines(preset)
+
+
+@res.command()
+@click.argument("target", required=False)
+def build(target=None):
+  """
+    Builds cmake/ninja project.
+  """
+  os.chdir(utils.project_source_dir_path())
+  if not os.path.exists("./build"):
+    # Need to invoke `res gen` before `res build`
+    ctx = click.get_current_context()
+    ctx.invoke(gen)
+  cmds = ["cmake", "--build", "build"]
+  if target is not None:
+    cmds.append("-t")
+    cmds.append(target)
+  resp : utils.InvocationResult = utils.invoke(cmds)
+
+
+@res.command()
+@click.option("--all", is_flag=True)
+def clean(all):
+  """
+    Cleans build files.
+  """
+  os.chdir(utils.project_source_dir_path())
+  exclusions = [".bench-data"] if not all else []
+  if not os.path.exists("build") or not os.path.isdir("build"):
+    return
+  for i in os.listdir("build"):
+    ipath = os.path.join("build", i)
+    if i in exclusions:
+      continue
+    if os.path.isdir(ipath):
+      shutil.rmtree(ipath)
+    else:
+      os.remove(ipath)
+  utils.LOG_SUCCESS("Done")
+
+
+def guess_candidates(src):
+  if "build/" in src:
+    src = src.replace("build/", "")
+  if os.path.exists(src):
+    return [src]
+  # Resolve binary path
+  # Allows us to do `res run <target>`
+  candidate = utils.project_source_dir_path() / "build" / src
+  if os.path.exists(candidate):
+    return [candidate]
+  # See if it's inside Debug dir
+  candidate = utils.project_source_dir_path() / "build" / "Debug" / src
+  if os.path.exists(candidate):
+    return [candidate]
+  # See if we can match prefixes
+  candidates = []
+  for root, _, files in os.walk("build"):
+    for filename in fnmatch.filter(files, src + "*"):
+      filepath = os.path.join(root, filename)
+      if os.access(filepath, os.X_OK) and os.path.isfile(filepath):
+        candidates.append(os.path.abspath(filepath))
+  if candidates != []:
+    return candidates
+  print("Could not locate " + src + "!")
+  return []
+
+
+@res.command()
+@click.argument("src")
+@click.option("--debug", is_flag=True)
+@click.option("--build-first", is_flag=True)
+def run(src, debug, build_first):
+  """
+    Runs tests / benchmarks / targets etc
+  """
+  if build_first:
+    cmds = ["cmake", "--build", "build"]
+    resp : utils.InvocationResult = utils.invoke(cmds)
+    if resp.returncode != 0:
+      exit(-1)
+  f = open(kPRESET_INFO_FILE, "r")
+  c = f.read()
+  f.close()
+  preset = c.strip()
+  if preset not in ["ninja"]:
+    print("Unknown preset!")
+    exit(-1)
+  for _src in guess_candidates(src):
+    src_bin = pathlib.Path(_src).name
+    utils.LOG_INFO(f"Running `{src_bin}`...")
+    os.chdir(utils.project_source_dir_path() / "build")
+    if os.system(f"gdb {_src}" if debug else _src) != 0:
+      utils.LOG_ERROR(f"Run failed {src_bin}!")
+      exit(-1)
+  utils.LOG_SUCCESS("▪︎")
+
+
+if __name__ == '__main__':
+  res()

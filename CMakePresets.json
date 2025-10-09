@@ -1,0 +1,42 @@
+{
+  "version": 4,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 23,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "ccache_enabled",
+      "description": "Configuration preset used to toggle ccache usage.",
+      "hidden": true,
+      "environment": {
+        "CMAKE_C_COMPILER_LAUNCHER" : "ccache",
+        "CMAKE_CXX_COMPILER_LAUNCHER" : "ccache"
+      }
+    },
+    {
+      "name": "ninja",
+      "displayName": "Ninja Config",
+      "description": "Default build using Ninja generator",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables" : {
+        "CMAKE_COLOR_DIAGNOSTICS" : "ON",
+        "CMAKE_EXPORT_COMPILE_COMMANDS" : "ON",
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "inherits": [
+        "ccache_enabled"
+      ]
+    }
+  ],
+  "buildPresets" : [
+    {
+      "name" : "ninja",
+      "configurePreset" : "ninja",
+      "inheritConfigureEnvironment" : true
+    }
+  ]
+}
+

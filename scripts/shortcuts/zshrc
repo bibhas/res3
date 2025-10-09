@@ -1,0 +1,11 @@
+#!/bin/zsh
+
+# Source this file in your shell, like so:
+# `$ source ./scripts/zshrc`
+
+realpath() { for f in "$@"; do echo ${f}(:A); done }
+scriptpath=`realpath $0`
+scriptdir=`dirname $scriptpath`
+path+=($scriptdir)
+path+=($scriptdir/..)
+export path

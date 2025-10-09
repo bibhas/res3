@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# If you'd like convenient access of scripts in this dir, 
+# source this file in your shell, like so:
+# `$ source ./scripts/mac/bashrc`
+# Then, you can directly call scripts like so:
+# `$ gen`
+
+RESPATH="$( builtin cd "$( dirname "${BASH_SOURCE[0]}" )" && builtin cd .. && pwd )"
+export PATH="$RESPATH:$PATH"
+echo "Done."
