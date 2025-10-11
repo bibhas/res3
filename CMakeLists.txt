@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.20)
 project(res3)
 
 enable_language(C CXX ASM)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Copies all binaries to `build/ninja`
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY 
