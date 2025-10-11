@@ -1,4 +1,4 @@
-// testapp.cpp
+// server.cpp
 
 #include <iostream>
 #include <cstdint>
@@ -18,5 +18,6 @@ int main(int argc, const char **argv) {
     std::cout << "GUID: " << guid << std::endl;
   }
   ibv_free_device_list(dev_list);
+  printf("Hello server\n");
   return 0;
 }
