@@ -21,6 +21,8 @@ struct rdma_t {
   struct ibv_cq *cq = nullptr;
   struct ibv_device **devices = nullptr;
   char *buffer = nullptr;
+  union ibv_gid gid{0};
+  uint8_t sgid_index = 0;
   uint8_t port_number = std::numeric_limits<std::uint8_t>::max();
   // Destructor
   virtual ~rdma_t();
@@ -58,6 +60,11 @@ int main(int argc, const char **argv) {
   EXPECT(rdma->devices != nullptr, "ibv_get_device_list failed");
   rdma->context = ibv_open_device(rdma->devices[0]); // Select first device
   EXPECT(rdma->context != nullptr, "ibv_open_devices failed");
+
+  // Select gid (TODO: write better gid selection logic)
+  int resp = ibv_query_gid(rdma->context, rdma->port_number, 0, &rdma->gid);
+  EXPECT(resp == 0, "ibv_query_gid failed");
+  rdma->sgid_index = 0;
 
   // Allocate protection domain
   rdma->pd = ibv_alloc_pd(rdma->context);
@@ -99,7 +106,7 @@ int main(int argc, const char **argv) {
   // Ensure port exists
   struct ibv_port_attr port_attr;
   rdma->port_number = 1; // ports are 1-indexed
-  int resp = ibv_query_port(rdma->context, rdma->port_number, &port_attr);
+  resp = ibv_query_port(rdma->context, rdma->port_number, &port_attr);
   EXPECT(resp == 0, "ibv_query_port failed");
 
   // Transition QP from RESET to INIT state
@@ -128,9 +135,10 @@ int main(int argc, const char **argv) {
   struct rdma_qp_metadata_t local_metadata = {
     .qpn = rdma->qp->qp_num,
     .psn = 0,
-    .lid = port_attr.lid,
     .offset = (uintptr_t)rdma->buffer,
-    .rkey = rdma->mr->rkey
+    .rkey = rdma->mr->rkey,
+    .sgid_index = rdma->sgid_index,
+    .gid = rdma->gid
   };
   struct rdma_qp_metadata_t remote_metadata{0};
   ssize_t recvd = read(sockfd, (void *)&remote_metadata, sizeof(remote_metadata));
@@ -142,8 +150,14 @@ int main(int argc, const char **argv) {
   print_metadata("Server", remote_metadata);
 
   // Transition QP from INIT to RTR state
+  struct ibv_global_route grh = {
+    .dgid = remote_metadata.gid,
+    .sgid_index = remote_metadata.sgid_index,
+    .hop_limit = 64,
+    .traffic_class = 0
+  };
   struct ibv_ah_attr rtr_ah_attr = {
-    .dlid = (uint16_t)remote_metadata.lid,
+    .grh = grh,
     .sl = 0,
     .src_path_bits = 0,
     .is_global = 1,
@@ -215,7 +229,6 @@ int main(int argc, const char **argv) {
   do {
     int _num_entries = 1;
     completions = ibv_poll_cq(rdma->cq, _num_entries, &wc);
-    std::cout << completions << std::endl;
   }
   while (completions == 0);
   EXPECT(completions > 0 && wc.status == IBV_WC_SUCCESS, "ibv_poll_cq READ failed");
