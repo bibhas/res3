@@ -132,5 +132,23 @@ def run(src, debug, build_first):
   utils.LOG_SUCCESS("▪︎")
 
 
+@res.command()
+def push():
+  """
+    Rusn git push (and git pull in bib2)
+  """
+  cmds = ["git", "push", "-u", "origin", "main"]
+  resp : utils.InvocationResult = utils.invoke(cmds)
+  if resp.returncode != 0:
+    exit(-1)
+  # Add the following to ~/.ssh/config file
+  #  Host other
+  #  HostName  192.168.4.?
+  #  IdentityFile ~/.ssh/id_ed2219
+  #  ForwardAgent yes
+  os.system("ssh other \"cd ~/Sources/res3; git pull\"")
+  utils.LOG_SUCCESS("▪︎")
+
+
 if __name__ == '__main__':
   res()
