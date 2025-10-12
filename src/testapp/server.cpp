@@ -211,7 +211,10 @@ int main(int argc, const char **argv) {
 
   printf("QP in RTS. All systems are go. T- 10s and counting...\n");
 
-  sleep(10);
+  sleep(3);
+
+  printf("Buffer content: %s\n", rdma->buffer);
+
   close(connfd);
   close(listenfd);
 
