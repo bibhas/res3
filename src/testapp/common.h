@@ -18,7 +18,7 @@ void print_metadata(std::string prefix, rdma_qp_metadata_t& metadata) {
   std::cout << " psn:" << metadata.psn;
   std::cout << " offset:" << metadata.offset;
   std::cout << " rkey:" << metadata.rkey;
-  std::cout << " sgid_index:" << metadata.sgid_index;
+  std::cout << " sgid_index:" << (uint32_t)metadata.sgid_index;
   char gid_chars[INET6_ADDRSTRLEN];
   if (!inet_ntop(AF_INET6, metadata.gid.raw, gid_chars, sizeof(gid_chars))) {
     perror("inet_ntop");
