@@ -62,11 +62,6 @@ int main(int argc, const char **argv) {
   rdma->context = ibv_open_device(rdma->devices[0]); // Select first device
   EXPECT(rdma->context != nullptr, "ibv_open_devices failed");
 
-  // Select gid (TODO: write better gid selection logic)
-  int resp = ibv_query_gid(rdma->context, rdma->port_number, 0, &rdma->gid);
-  EXPECT(resp == 0, "ibv_query_gid failed");
-  rdma->sgid_index = 0;
-
   // Allocate protection domain
   rdma->pd = ibv_alloc_pd(rdma->context);
   EXPECT(rdma->pd != nullptr, "ibv_alloc_pd failed!");
@@ -107,8 +102,13 @@ int main(int argc, const char **argv) {
   // Ensure port exists
   struct ibv_port_attr port_attr;
   rdma->port_number = 1; // ports are 1-indexed
-  resp = ibv_query_port(rdma->context, rdma->port_number, &port_attr);
+  int resp = ibv_query_port(rdma->context, rdma->port_number, &port_attr);
   EXPECT(resp == 0, "ibv_query_port failed");
+
+  // Select gid (TODO: write better gid selection logic)
+  rdma->sgid_index = 1;
+  resp = ibv_query_gid(rdma->context, rdma->port_number, rdma->sgid_index, &rdma->gid);
+  EXPECT(resp == 0, "ibv_query_gid failed");
 
   // Transition QP from RESET to INIT state
   struct ibv_qp_attr init_attr = {
