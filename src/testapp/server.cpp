@@ -9,38 +9,7 @@
 #include <infiniband/verbs.h>
 #include "common.h"
 
-static constexpr size_t kBufferSize = 4096;
-static constexpr size_t kTCPPort = 9999;
 static const char *kDefaultMessage = "Hello from server RDMA!";
-
-struct rdma_t {
-  struct ibv_context *context = nullptr;
-  struct ibv_pd *pd = nullptr;
-  struct ibv_mr *mr = nullptr;
-  struct ibv_qp *qp = nullptr;
-  struct ibv_cq *cq = nullptr;
-  struct ibv_device **devices = nullptr;
-  char *buffer = nullptr;
-  union ibv_gid gid{0};
-  uint8_t sgid_index = 0;
-  uint8_t port_number = std::numeric_limits<std::uint8_t>::max();
-  // Destructor
-  virtual ~rdma_t();
-};
-
-rdma_t::~rdma_t() {
-  std::cout << "~rdma_t" << std::endl;
-  if (mr) ibv_dereg_mr(mr);
-  if (qp) ibv_destroy_qp(qp);
-  if (cq) ibv_destroy_cq(cq);
-  if (pd) ibv_dealloc_pd(pd);
-  if (context) ibv_close_device(context);
-  if (devices) ibv_free_device_list(devices);
-  if (buffer) free(buffer);
-}
-
-#define TERMINATE(msg) perror(msg); return EXIT_FALURE;
-#define EXPECT(BVAL, ERRMSG) if (!(BVAL)) { perror(ERRMSG); return EXIT_FAILURE; }
 
 int main(int argc, const char **argv) {
   // Setup rdma_t
