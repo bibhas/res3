@@ -145,6 +145,9 @@ int main(int argc, const char **argv) {
   ssize_t recvd = read(connfd, (void *)&remote_metadata, sizeof(remote_metadata));
   EXPECT(recvd == sizeof(remote_metadata), "read failed");
 
+  print_metadata("Client", local_metadata);
+  print_metadata("Server", remote_metadata);
+
   // Transition QP from INIT to RTR state
   struct ibv_ah_attr rtr_ah_attr = {
     .dlid = (uint16_t)remote_metadata.lid,

@@ -11,7 +11,7 @@
 
 static constexpr size_t kBufferSize = 4096;
 static constexpr size_t kTCPPort = 9999;
-static const char *kServerIP = "192.168.0.1";
+static const char *kServerIP = "192.168.4.2";
 
 struct rdma_t {
   struct ibv_context *context = nullptr;
@@ -119,7 +119,7 @@ int main(int argc, const char **argv) {
   struct sockaddr_in server_addr{0};
   server_addr.sin_family = AF_INET;
   server_addr.sin_port = htons(kTCPPort);
-  resp = inet_pton(AF_INET, kServerIP, &server_addr);
+  resp = inet_pton(AF_INET, kServerIP, &server_addr.sin_addr);
   EXPECT(resp == 1, "inet_pton failed");
   resp = connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
   EXPECT(resp == 0, "connect failed");
@@ -137,6 +137,9 @@ int main(int argc, const char **argv) {
   EXPECT(recvd == sizeof(remote_metadata), "read failed");
   ssize_t sent = write(sockfd, (void *)&local_metadata, sizeof(local_metadata));
   EXPECT(sent == sizeof(local_metadata), "write failed");
+
+  print_metadata("Client", local_metadata);
+  print_metadata("Server", remote_metadata);
 
   // Transition QP from INIT to RTR state
   struct ibv_ah_attr rtr_ah_attr = {
@@ -212,6 +215,7 @@ int main(int argc, const char **argv) {
   do {
     int _num_entries = 1;
     completions = ibv_poll_cq(rdma->cq, _num_entries, &wc);
+    std::cout << completions << std::endl;
   }
   while (completions == 0);
   EXPECT(completions > 0 && wc.status == IBV_WC_SUCCESS, "ibv_poll_cq READ failed");
