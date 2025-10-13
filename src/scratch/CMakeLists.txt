@@ -13,9 +13,9 @@ foreach(FILE ${CPP_FILES})
   utils_add_executable(${TARGETNAME}
     SOURCES ${FILE}
     # Edit target properties below
-    INCLUDES ${IBVERBS_INCLUDE_DIRS}
-    LINKS ${IBVERBS_LIBRARIES}
-    CFLAGS "-DVERBOSE"
+    INCLUDES ${IBVERBS_INCLUDE_DIRS} ${DPDK_INCLUDE_DIRS}
+    LINKS ${IBVERBS_LIBRARIES} ${DPDK_LIBRARIES}
+    CFLAGS "-DVERBOSE" "-fpermissive"
   )
 endforeach()
 
