@@ -22,9 +22,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(IBVERBS REQUIRED libibverbs)
 pkg_check_modules(DPDK REQUIRED libdpdk>=25.07)
 
-#set(PcapPlusPlus_DIR "~/Sources/PcapPlusPlus/BUILT_HERE/lib/cmake/pcapplusplus/")
-#find_package(PcapPlusPlus REQUIRED)
-
+add_compile_options(-march=native) # Required for sse3 etc.
 
 add_subdirectory("src")
 
