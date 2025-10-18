@@ -134,7 +134,7 @@ int main(int argc, char **argv) {
 
   // Setup rx queue
   uint16_t rx_queue_id = 0; // We just have one rx queue
-  uint16_t rx_descriptors = info.rx_desc_lim.nb_min;
+  uint16_t rx_descriptors = info.default_rxportconf.ring_size;
   printf("Using rx_descriptors: %hu\n", rx_descriptors);
   struct rte_eth_rxconf *rx_conf = nullptr; // default will be used
   struct rte_mempool *rx_mp = mp; // We'll reuse our existing mp for all rx mbufs
@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
 
   // Setup tx queue
   uint16_t tx_queue_id = 0; // We just have one tx queue
-  uint16_t tx_descriptors = info.tx_desc_lim.nb_min;
+  uint16_t tx_descriptors = info.default_txportconf.ring_size;
   printf("Using tx_descriptors: %hu\n", tx_descriptors);
   struct rte_eth_txconf *tx_conf = nullptr; // default will be used
   resp = rte_eth_tx_queue_setup(
