@@ -116,6 +116,11 @@ int main(int argc, char **argv) {
   EXPECT(found == true, "No up port found");
   printf("Usable port_id: %hu\n", port_id);
 
+  // Fetch device info
+  struct rte_eth_dev_info info;
+  resp = rte_eth_dev_info_get(port_id, &info);
+  EXPECT(resp == 0, "rte_eth_dev_info failed");
+
   /*
    * Device setup for TX
    */
@@ -129,7 +134,8 @@ int main(int argc, char **argv) {
 
   // Setup tx queue
   uint16_t queue_id = 0; // We just have one tx queue
-  uint16_t tx_descriptors = 512;
+  uint16_t tx_descriptors = info.tx_desc_lim.nb_min;
+  printf("Using tx_descriptors: %hu\n", tx_descriptors);
   struct rte_eth_txconf *txconf = NULL; // default will be used
   resp = rte_eth_tx_queue_setup(
     port_id, queue_id, tx_descriptors, rte_eth_dev_socket_id(port_id), txconf

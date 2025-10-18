@@ -116,6 +116,11 @@ int main(int argc, char **argv) {
   EXPECT(found == true, "No up port found");
   printf("Usable port_id: %hu\n", port_id);
 
+  // Fetch device info
+  struct rte_eth_dev_info info;
+  resp = rte_eth_dev_info_get(port_id, &info);
+  EXPECT(resp == 0, "rte_eth_dev_info failed");
+
   /*
    * Setup device for RX
    */
@@ -129,7 +134,8 @@ int main(int argc, char **argv) {
 
   // Setup rx queue
   uint16_t rx_queue_id = 0; // We just have one rx queue
-  uint16_t rx_descriptors = 1024;
+  uint16_t rx_descriptors = info.rx_desc_lim.nb_min;
+  printf("Using rx_descriptors: %hu\n", rx_descriptors);
   struct rte_eth_rxconf *rx_conf = nullptr; // default will be used
   struct rte_mempool *rx_mp = mp; // We'll reuse our existing mp for all rx mbufs
   resp = rte_eth_rx_queue_setup(
@@ -139,7 +145,8 @@ int main(int argc, char **argv) {
 
   // Setup tx queue
   uint16_t tx_queue_id = 0; // We just have one tx queue
-  uint16_t tx_descriptors = 128;
+  uint16_t tx_descriptors = info.tx_desc_lim.nb_min;
+  printf("Using tx_descriptors: %hu\n", tx_descriptors);
   struct rte_eth_txconf *tx_conf = nullptr; // default will be used
   resp = rte_eth_tx_queue_setup(
     port_id, tx_queue_id, tx_descriptors, rte_eth_dev_socket_id(port_id), tx_conf
@@ -155,13 +162,16 @@ int main(int argc, char **argv) {
   EXPECT(resp == 0, "rte_eth_promiscuous_enable failed");
   printf("port_id: %hu ready to receive packets...\n", port_id);
 
-  struct rte_mbuf *rx_pkts[8];
+  uint16_t burst_size = info.default_rxportconf.burst_size;
+  printf("Using burst_size: %hu\n", burst_size);
+  auto rx_pkts = (struct rte_mbuf *)malloc(sizeof(rte_mbuf) * burst_size);
   while (true) {
-    uint16_t nb_rx = rte_eth_rx_burst(port_id, rx_queue_id, rx_pkts, 8);
+    uint16_t nb_rx = rte_eth_rx_burst(port_id, rx_queue_id, &rx_pkts, burst_size);
     EXPECT(nb_rx <= 1, "rte_eth_rx_burst received more than on packets");
     if (nb_rx > 0) {
-      log_pktmbuf(rx_pkts[0]);
-      rte_pktmbuf_free(rx_pkts[0]);
+      // We'll just process the first packet
+      log_pktmbuf(rx_pkts);
+      rte_pktmbuf_free(rx_pkts);
       break;
     }
   }
