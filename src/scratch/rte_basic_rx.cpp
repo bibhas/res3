@@ -1,4 +1,4 @@
-// rte_basic_tx.cpp
+// rte_basic_rx.cpp
 
 #include <iostream>
 #include <rte_eal.h>
@@ -129,13 +129,22 @@ int main(int argc, char **argv) {
 
   // Setup rx queue
   uint16_t queue_id = 0; // We just have one rx queue
-  uint16_t rx_descriptors = 16;
-  struct rte_eth_rxconf *rx_conf = NULL; // default will be used
+  uint16_t rx_descriptors = 1024;
+  struct rte_eth_rxconf *rx_conf = nullptr; // default will be used
   struct rte_mempool *rx_mp = mp; // We'll reuse our existing mp for all rx mbufs
   resp = rte_eth_rx_queue_setup(
     port_id, queue_id, rx_descriptors, rte_eth_dev_socket_id(port_id), rx_conf, rx_mp
   );
   EXPECT(resp == 0, "rte_eth_rx_queue_setup failed");
+
+  // Setup tx queue
+  uint16_t queue_id = 0; // We just have one tx queue
+  uint16_t tx_descriptors = 32;
+  struct rte_eth_txconf *tx_conf = nullptr; // default will be used
+  resp = rte_eth_tx_queue_setup(
+    port_id, queue_id, tx_descriptors, rte_eth_dev_socket_id(port_id), tx_conf
+  );
+  EXPECT(resp == 0, "rte_eth_tx_queue_setup failed");
 
   // Start device
   resp = rte_eth_dev_start(port_id);
