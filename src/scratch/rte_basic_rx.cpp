@@ -128,21 +128,21 @@ int main(int argc, char **argv) {
   EXPECT(resp == 0, "rte_eth_dev_configure failed");
 
   // Setup rx queue
-  uint16_t queue_id = 0; // We just have one rx queue
+  uint16_t rx_queue_id = 0; // We just have one rx queue
   uint16_t rx_descriptors = 1024;
   struct rte_eth_rxconf *rx_conf = nullptr; // default will be used
   struct rte_mempool *rx_mp = mp; // We'll reuse our existing mp for all rx mbufs
   resp = rte_eth_rx_queue_setup(
-    port_id, queue_id, rx_descriptors, rte_eth_dev_socket_id(port_id), rx_conf, rx_mp
+    port_id, rx_queue_id, rx_descriptors, rte_eth_dev_socket_id(port_id), rx_conf, rx_mp
   );
   EXPECT(resp == 0, "rte_eth_rx_queue_setup failed");
 
   // Setup tx queue
-  uint16_t queue_id = 0; // We just have one tx queue
-  uint16_t tx_descriptors = 32;
+  uint16_t tx_queue_id = 0; // We just have one tx queue
+  uint16_t tx_descriptors = 128;
   struct rte_eth_txconf *tx_conf = nullptr; // default will be used
   resp = rte_eth_tx_queue_setup(
-    port_id, queue_id, tx_descriptors, rte_eth_dev_socket_id(port_id), tx_conf
+    port_id, tx_queue_id, tx_descriptors, rte_eth_dev_socket_id(port_id), tx_conf
   );
   EXPECT(resp == 0, "rte_eth_tx_queue_setup failed");
 
@@ -155,9 +155,9 @@ int main(int argc, char **argv) {
   EXPECT(resp == 0, "rte_eth_promiscuous_enable failed");
   printf("port_id: %hu ready to receive packets...\n", port_id);
 
-  struct rte_mbuf *rx_pkts[1];
+  struct rte_mbuf *rx_pkts[8];
   while (true) {
-    uint16_t nb_rx = rte_eth_rx_burst(port_id, queue_id, rx_pkts, 1);
+    uint16_t nb_rx = rte_eth_rx_burst(port_id, rx_queue_id, rx_pkts, 8);
     EXPECT(nb_rx <= 1, "rte_eth_rx_burst received more than on packets");
     if (nb_rx > 0) {
       log_pktmbuf(rx_pkts[0]);
