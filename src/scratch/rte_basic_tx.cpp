@@ -134,7 +134,7 @@ int main(int argc, char **argv) {
 
   // Setup tx queue
   uint16_t queue_id = 0; // We just have one tx queue
-  uint16_t tx_descriptors = info.tx_desc_lim.nb_min;
+  uint16_t tx_descriptors = info.default_txportconf.ring_size;
   printf("Using tx_descriptors: %hu\n", tx_descriptors);
   struct rte_eth_txconf *txconf = NULL; // default will be used
   resp = rte_eth_tx_queue_setup(
