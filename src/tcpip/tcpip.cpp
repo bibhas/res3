@@ -5,8 +5,22 @@
 #include "glthread.h"
 #include "graph.h"
 
+graph_t *build_first_topo() {
+  graph_t *topo = graph_init("Hello World Generic Graph");
+  node_t *R0_re = graph_add_node(topo, "R0_re");
+  node_t *R1_re = graph_add_node(topo, "R1_re");
+  node_t *R2_re = graph_add_node(topo, "R2_re");
+
+  link_nodes(R0_re, R1_re, "eth0/0", "eth0/1", 1);
+  link_nodes(R1_re, R2_re, "eth0/2", "eth0/3", 1);
+  link_nodes(R0_re, R2_re, "eth0/4", "eth0/5", 1);
+
+  return topo;
+}
+
 int main(int argc, const char **argv) {
-  printf("Hello TCP/IP stack!\n");
+  graph_t *topo = build_first_topo();
+  graph_dump(topo);
   return 0;
 }
 

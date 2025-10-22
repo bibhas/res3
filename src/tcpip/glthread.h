@@ -2,10 +2,25 @@
 
 #pragma once
 
-typedef struct __glthread {
-  struct __glthread *left;
-  struct __glthread *right;
-} glthread_t;
+typedef struct glthread_t glthread_t;
+
+struct glthread_t {
+  struct glthread_t *left;
+  struct glthread_t *right;
+};
+
+#define ITERATE_GLTHREAD_BEGIN(start, ptr) { \
+  glthread_t *_ptr = NULL; \
+  ptr = (start)->right; \
+  for (; ptr != NULL; ptr = _ptr) { \
+    _ptr = ptr->right;
+
+#define ITERATE_GLTHREAD_END(start, ptr) }}
+
+#define DEFINE_GLTHREAD_TO_STRUCT_FUNC(fn_name, struct_name, field_name) \
+  static inline struct_name * fn_name(glthread_t *glthreadptr) { \
+    return (struct_name *)((char *)(glthreadptr) - (char *)&(((struct_name *)0)->field_name)); \
+  }
 
 static inline void init_glthread(glthread_t *curr) {
   if (!curr) { return; }
