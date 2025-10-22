@@ -9,13 +9,13 @@ struct glthread_t {
   struct glthread_t *right;
 };
 
-#define ITERATE_GLTHREAD_BEGIN(start, ptr) { \
+#define GLTHREAD_FOREACH_BEGIN(start, ptr) { \
   glthread_t *_ptr = NULL; \
   ptr = (start)->right; \
   for (; ptr != NULL; ptr = _ptr) { \
     _ptr = ptr->right;
 
-#define ITERATE_GLTHREAD_END(start, ptr) }}
+#define GLTHREAD_FOREACH_END() }}
 
 #define DEFINE_GLTHREAD_TO_STRUCT_FUNC(fn_name, struct_name, field_name) \
   static inline struct_name * fn_name(glthread_t *glthreadptr) { \

@@ -104,6 +104,18 @@ static inline int node_get_usable_interface_index(node_t *node) {
   return -1;
 }
 
+static inline interface_t* node_get_interface_by_name(node_t *node, const char *if_name) {
+  if (!node || !if_name) { return NULL; }
+  for (int i = 0; i < MAX_INTF_PER_NODE; i++) {
+    if (!node->intf[i]) { continue; }
+    interface_t *candidate = node->intf[i];
+    if (strcmp(candidate->if_name, if_name) == 0) {
+      return candidate;
+    }
+  }
+  return NULL; // Not found
+}
+
 void node_dump(node_t *node) {
   if (!node) { return; }
   printf("Node name: %s\n", node->node_name);
@@ -129,11 +141,11 @@ void graph_dump(graph_t *graph) {
   node_t *node;
   glthread_t *curr;
   printf("Topology name: %s\n", graph->topology_name);
-  ITERATE_GLTHREAD_BEGIN(&graph->node_list, curr) {
+  GLTHREAD_FOREACH_BEGIN(&graph->node_list, curr) {
     node = node_ptr_from_graph_glue(curr);
     node_dump(node);
   } 
-  ITERATE_GLTHREAD_END(&(graph->node_list), curr);
+  GLTHREAD_FOREACH_END();
 }
 
 static inline node_t *graph_add_node(graph_t *graph, const char *node_name) {
@@ -146,6 +158,17 @@ static inline node_t *graph_add_node(graph_t *graph, const char *node_name) {
   init_glthread(&resp->graph_glue);
   glthread_add_next(&graph->node_list, &resp->graph_glue);
   return resp;
+}
+
+static inline node_t* graph_find_node_by_name(graph_t *g, const char *node_name) {
+  glthread_t *curr = NULL;
+  GLTHREAD_FOREACH_BEGIN(&g->node_list, curr) {
+    node_t *curr_node = node_ptr_from_graph_glue(curr);
+    if (strcmp(curr_node->node_name, node_name) == 0) {
+      return curr_node;
+    }
+  } GLTHREAD_FOREACH_END();
+  return NULL;
 }
 
 static void link_nodes(node_t *node1, node_t *node2, const char *from_if_name, const char *to_if_name, unsigned int cost) {
