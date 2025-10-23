@@ -3,7 +3,9 @@
 #pragma once
 
 #include <cmath>
+#include <cstring>
 #include "glthread.h"
+#include "net.h"
 
 #define IF_NAME_SIZE 16
 #define GRAPH_NAME_SIZE 32
