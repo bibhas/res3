@@ -195,6 +195,16 @@ bool node_unset_interface_ipv4_address(node_t *n, const char *intf) {
   return true;
 }
 
+void node_dump_netprop(node_t *n) {
+  EXPECT_RETURN(n != nullptr, "Empty node param");
+  dump_line_indentation_guard_t guard;
+  dump_line("Loopback?: %s\n", n->netprop.loopback.configured ? "true" : "false");
+  if (!n->netprop.loopback.configured) {
+    return;
+  }
+  dump_line("Loopback address: " IPV4_ADDR_FMT "\n", IPV4_ADDR_BYTES_LE(n->netprop.loopback.addr));
+}
+
 #pragma mark -
 
 // Interface
@@ -210,4 +220,44 @@ bool interface_assign_mac_address(interface_t *interface, const char *addrstr) {
   EXPECT_RETURN_BOOL(interface != nullptr, "Empty interface param", false);
   EXPECT_RETURN_BOOL(addrstr != nullptr, "Empty address string param", false);
   return false;
+}
+
+void interface_dump_netprop(interface_t *i) {
+  dump_line_indentation_guard_t guard;
+  EXPECT_RETURN(i != nullptr, "Empty interface param");
+  dump_line("MAC: " MAC_ADDR_FMT "\n", MAC_ADDR_BYTES_BE(i->netprop.mac_addr));
+  dump_line("IP:\n");
+  dump_line_indentation_add(1);
+  dump_line("Configured?: %s\n", i->netprop.ip.configured ? "true" : "false");
+  if (i->netprop.ip.configured) {
+    dump_line("Address: " IPV4_ADDR_FMT "\n", IPV4_ADDR_BYTES_LE(i->netprop.ip.addr));
+    dump_line("Mask: %u\n", i->netprop.ip.mask);
+  }
+}
+
+#pragma mark -
+
+// Graph
+
+void graph_dump_netprop(graph_t *g) {
+  EXPECT_RETURN(g != nullptr, "Empty graph param");
+  dump_line_indentation_guard_t guard0;
+  glthread_t *curr;
+  dump_line("Graph network properties:\n");
+  dump_line_indentation_add(1);
+  GLTHREAD_FOREACH_BEGIN(&g->node_list, curr) {
+    dump_line_indentation_guard_t guard1;
+    node_t *n = node_ptr_from_graph_glue(curr);
+    dump_line("Node:\n");
+    dump_line_indentation_add(1);
+    node_dump_netprop(n); 
+    for (int i = 0; i < MAX_INTF_PER_NODE; i++) {
+      if (!n->intf[i]) { continue; }
+      dump_line_indentation_guard_t guard2;
+      dump_line("Interface:\n");
+      dump_line_indentation_add(1);
+      interface_dump_netprop(n->intf[i]);
+    }
+  }
+  GLTHREAD_FOREACH_END();
 }

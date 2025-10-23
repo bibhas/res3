@@ -20,3 +20,19 @@
 #define EXPECT_RETURN(COND, MSG) if (!(COND)) { printf("[ERR] %s\n", MSG); return; }
 #define ERR_RETURN_BOOL(MSG, RET) printf("[ERR] %s\n", MSG); return RET;
 
+// Functions to perform printf with indentation
+void dump_line(const char *fmt, ...);
+void dump_line_indentation_add(uint8_t val);
+void dump_line_indentation_push();
+void dump_line_indentation_pop();
+void dump_line_indentation_reset();
+
+struct dump_line_indentation_guard_t {
+  dump_line_indentation_guard_t() {
+    dump_line_indentation_push();
+  }
+  virtual ~dump_line_indentation_guard_t() {
+    dump_line_indentation_pop();
+  }
+};
+

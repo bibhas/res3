@@ -2,6 +2,7 @@
 
 #include "graph.h"
 #include "utils.h"
+#include "net.h"
 
 #pragma mark -
 
@@ -28,11 +29,14 @@ node_t* interface_get_neighbor_node(interface_t *interface) {
 
 void interface_dump(interface_t *interface) {
   if (!interface) { return; }
+  dump_line_indentation_guard_t guard0;
   node_t *nbr_node = interface_get_neighbor_node(interface);
-  printf("  Interface: %s\n", interface->if_name);
-  printf("    Attached node: %s\n", interface->att_node ? interface->att_node->node_name : "x");
-  printf("    Neighbor node: %s\n", nbr_node ? nbr_node->node_name : "x");
-  printf("    Cost: %u\n", interface->link ? interface->link->cost : 0);
+  dump_line("Attached node: %s\n", interface->att_node ? interface->att_node->node_name : "x");
+  dump_line("Neighbor node: %s\n", nbr_node ? nbr_node->node_name : "x");
+  dump_line("Cost: %u\n", interface->link ? interface->link->cost : 0);
+  dump_line("Network Properties:\n");
+  dump_line_indentation_add(1);
+  interface_dump_netprop(interface);
 }
 
 #pragma mark -
@@ -93,9 +97,22 @@ interface_t* node_get_interface_by_name(node_t *node, const char *if_name) {
 
 void node_dump(node_t *node) {
   if (!node) { return; }
-  printf("Node name: %s\n", node->node_name);
+  dump_line_indentation_guard_t guard0;
+  // Node name
+  dump_line("Node name: %s\n", node->node_name);
+  dump_line_indentation_add(1);
+  // Network properties
+  dump_line_indentation_push();
+  dump_line("Network Properties:\n");
+  dump_line_indentation_add(1);
+  node_dump_netprop(node);
+  dump_line_indentation_pop();
+  // Interfaces
   for (int i = 0; i < MAX_INTF_PER_NODE; i++) {
     if (!node->intf[i]) { continue; }
+    dump_line_indentation_guard_t guard1;
+    dump_line("Interface: %s\n", node->intf[i]->if_name);
+    dump_line_indentation_add(1);
     interface_dump(node->intf[i]);
   }
 }
@@ -117,10 +134,14 @@ graph_t* graph_init(const char *topology_name) {
 }
 
 void graph_dump(graph_t *graph) {
+  dump_line("Topology name: %s\n", graph->topology_name);
+  dump_line_indentation_guard_t guard0;
+  dump_line_indentation_add(1);
+  // Iterate over nodes
   node_t *node;
   glthread_t *curr;
-  printf("Topology name: %s\n", graph->topology_name);
   GLTHREAD_FOREACH_BEGIN(&graph->node_list, curr) {
+    dump_line_indentation_guard_t guard1;
     node = node_ptr_from_graph_glue(curr);
     node_dump(node);
   } 

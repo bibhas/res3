@@ -8,6 +8,7 @@
 
 typedef struct node_t node_t;
 typedef struct interface_t interface_t;
+typedef struct graph_t graph_t;
 
 #pragma mark -
 
@@ -71,6 +72,7 @@ void node_netprop_init(node_netprop_t *prop);
 bool node_set_loopback_address(node_t *n, const char *addrstr);
 bool node_set_interface_ipv4_address(node_t *n, const char *intf, const char *addrstr, uint8_t mask);
 bool node_unset_interface_ipv4_address(node_t *n, const char *intf);
+void node_dump_netprop(node_t *n);
 
 #pragma mark -
 
@@ -91,4 +93,10 @@ typedef struct interface_netprop_t interface_netprop_t;
 
 void interface_netprop_init(interface_netprop_t *prop);
 bool interface_assign_mac_address(interface_t *interface, const char *addrstr);
+void interface_dump_netprop(interface_t *i);
 
+#pragma mark -
+
+// Graph properties
+
+void graph_dump_netprop(graph_t *g);
