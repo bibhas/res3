@@ -2,14 +2,15 @@
 
 #include "net.h"
 #include "graph.h"
+#include "utils.h"
 
 #pragma mark -
 
 // IPv4 Address
 
-bool ipv4_addr_try_parse(const char *addstr, ipv4_addr_t *out) {
+bool ipv4_addr_try_parse(const char *addrstr, ipv4_addr_t *out) {
   // Sanity check
-  if (!out) { return false; }  
+  EXPECT_RETURN_BOOL(out != nullptr, "Empty out ptr param", false);
   // Use a union so we can easily fill the individual bytes and then read the
   // combined 32-bit integer without worrying about bit shifting manually.
   union {
@@ -21,26 +22,18 @@ bool ipv4_addr_try_parse(const char *addstr, ipv4_addr_t *out) {
   int digits = 0; // Digits in current octet
   int bytes = 3;  // Bytes to process
   // Traverse the string from right-to-left
-  for (int i = strlen(addstr) - 1; i >= 0; i--) {
-    char c = addstr[i];
-    if (c == '\0' && i == strlen(addstr) - 1) {
+  for (int i = strlen(addrstr) - 1; i >= 0; i--) {
+    char c = addrstr[i];
+    if (c == '\0' && i == strlen(addrstr) - 1) {
       continue; // Ignore null terminator at the end
     }
     else if (c == '.') {
       // A period marks the end of an octet.
-      if (digits == 0) { 
-        // We a period without seeing any numbers
-        // For eg. 192.168.1. <-
-        return false; 
-      }
-      if (acc > 255) { 
-        // Overflows the octet
-        return false; 
-      }
-      if (bytes < 0) {
-        // We got more than 3 periods
-        return false;
-      }
+      // We could get a period without seeing any numbers. That is invalid.
+      // For eg. 192.168.1. <-
+      EXPECT_RETURN_BOOL(digits != 0, "No digits", false);
+      EXPECT_RETURN_BOOL(acc <= 255, "Octer overflow", false);
+      EXPECT_RETURN_BOOL(bytes >= 0, "More than three periods", false);
       resp.bytes[bytes] = acc;
       bytes--;
       acc = 0;    // Reset accumulator for next octet
@@ -51,22 +44,20 @@ bool ipv4_addr_try_parse(const char *addstr, ipv4_addr_t *out) {
       acc += (c - '0') * mult; 
       mult *= 10;
       digits++;
-      if (digits > 3) {
-        // We got more than 3 digits
-        // For eg. 192.168.0.0001 <- 
-        return false;
-      }
+      // We could get more than 3 digits, which is invalid.
+      // For eg. 192.168.0.0001 <- 
+      EXPECT_RETURN_BOOL(digits <= 3, "More than 3 digits per octet", false);
     }
     else {
       // Got something other than '.' or digits
-      return false;
+      ERR_RETURN_BOOL("Invalid character", false);
     }
   }
   // The 0th octet will not have a period before it, so we need to manually
   // consider it.
-  if (digits == 0 || acc > 255 || bytes != 0) {
-    return false;
-  }
+  EXPECT_RETURN_BOOL(digits != 0, "No digits", false);
+  EXPECT_RETURN_BOOL(acc <= 255, "Octer overflow", false);
+  EXPECT_RETURN_BOOL(bytes >= 0, "More than three periods", false);
   resp.bytes[0] = acc;
   // Fill the return object
   out->value = resp.value;
@@ -79,27 +70,57 @@ bool ipv4_addr_try_parse(const char *addstr, ipv4_addr_t *out) {
 // Node
 
 void node_netprop_init(node_netprop_t *prop) {
-  if (!prop) { return; }
+  EXPECT_RETURN(prop != nullptr, "Empty prop");
   prop->loopback.configured = false;
   prop->loopback.addr.value = 0;
 }
 
-bool node_set_loopback_address(node_t *n, const char *addr) {
-  if (!n || !addr) { return false; }
-  ipv4_addr_t resp = {0};
-  if (!ipv4_addr_try_parse(addr, &resp)) {
-    return false;
-  }
+bool node_set_loopback_address(node_t *n, const char *addrstr) {
+  EXPECT_RETURN_BOOL(n != nullptr, "Empty node param", false);
+  EXPECT_RETURN_BOOL(addrstr != nullptr, "Empty address string param", false);
+  ipv4_addr_t addr = {0};
+  bool resp = ipv4_addr_try_parse(addrstr, &addr);
+  EXPECT_RETURN_BOOL(resp == true, "ipv4_addr_try_parse failed", false);
   n->netprop.loopback.configured = true;
   // We could've passed addr directly to the parsing function, but didn't, for
   // the sake of readability.
-  n->netprop.loopback.addr = resp;
+  n->netprop.loopback.addr = addr;
   return true;
 }
 
-bool node_set_interface_ipv4_address(node_t *n, const char *intf, const char *addr, uint8_t mask) {
-  if (!n || !intf || !addr) { return false; }
-  return false;
+bool node_set_interface_ipv4_address(node_t *n, const char *intf, const char *addrstr, uint8_t mask) {
+  EXPECT_RETURN_BOOL(n != nullptr, "Empty node param", false);
+  EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface param", false);
+  EXPECT_RETURN_BOOL(addrstr != nullptr, "Empty address string param", false);
+  // Find interface
+  interface_t *candidate = node_get_interface_by_name(n, intf);
+  EXPECT_RETURN_BOOL(candidate != nullptr, "node_get_interface_by_name failed", false);
+  // Parse address string
+  ipv4_addr_t addr = {0};
+  bool resp = ipv4_addr_try_parse(addrstr, &addr);
+  EXPECT_RETURN_BOOL(resp == true, "ipv4_addr_try_parse failed", false);
+  candidate->netprop.ip = {
+    .configured = true,
+    .addr = addr,
+    .mask = mask
+  };
+  return true;
+}
+
+bool node_unset_interface_ipv4_address(node_t *n, const char *intf) {
+  EXPECT_RETURN_BOOL(n != nullptr, "Empty node param", false);
+  EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface param", false);
+  // Find interface
+  interface_t *candidate = node_get_interface_by_name(n, intf);
+  EXPECT_RETURN_BOOL(candidate != nullptr, "node_get_interface_by_name failed", false);
+  // Parse address string
+  ipv4_addr_t addr = {0};
+  candidate->netprop.ip = {
+    .configured = false,
+    .addr = addr,
+    .mask = 0
+  };
+  return true;
 }
 
 #pragma mark -
@@ -107,7 +128,7 @@ bool node_set_interface_ipv4_address(node_t *n, const char *intf, const char *ad
 // Interface
 
 void interface_netprop_init(interface_netprop_t *prop) {
-  if (!prop) { return; } 
+  EXPECT_RETURN(prop != nullptr, "Empty interface property param");
   prop->mac_addr.value = 0;
   prop->ip.configured = false;
   prop->ip.addr.value = 0;

@@ -29,7 +29,7 @@ typedef struct ipv4_addr_t ipv4_addr_t;
 #define IPV4_ADDR_BYTES_BE(IP) \
   IP.bytes[0], IP.bytes[1], IP.bytes[2], IP.bytes[3]
 
-bool ipv4_addr_try_parse(const char *addstr, ipv4_addr_t *out);
+bool ipv4_addr_try_parse(const char *addrstr, ipv4_addr_t *out);
 
 #pragma mark -
 
@@ -65,8 +65,9 @@ struct node_netprop_t {
 typedef struct node_netprop_t node_netprop_t;
 
 void node_netprop_init(node_netprop_t *prop);
-bool node_set_loopback_address(node_t *n, const char *addr);
-bool node_set_interface_ipv4_address(node_t *n, const char *intf, const char *addr, uint8_t mask);
+bool node_set_loopback_address(node_t *n, const char *addrstr);
+bool node_set_interface_ipv4_address(node_t *n, const char *intf, const char *addrstr, uint8_t mask);
+bool node_unset_interface_ipv4_address(node_t *n, const char *intf);
 
 #pragma mark -
 
