@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <iostream>
 #include "glthread.h"
 #include "net.h"
 
@@ -35,6 +36,7 @@ struct interface_t {
   char if_name[IF_NAME_SIZE];
   struct node_t *att_node;
   struct link_t *link;
+  interface_netprop_t netprop;
 };
 
 struct link_t {
@@ -47,6 +49,7 @@ struct node_t {
   char node_name[NODE_NAME_SIZE];
   interface_t *intf[MAX_INTF_PER_NODE];
   glthread_t graph_glue;
+  node_netprop_t netprop;
 };
 
 struct graph_t {
@@ -77,7 +80,7 @@ static inline node_t* interface_get_neighbor_node(interface_t *interface) {
   return NULL;
 }
 
-void interface_dump(interface_t *interface) {
+static inline void interface_dump(interface_t *interface) {
   if (!interface) { return; }
   node_t *nbr_node = interface_get_neighbor_node(interface);
   printf("  Interface: %s\n", interface->if_name);
@@ -118,7 +121,7 @@ static inline interface_t* node_get_interface_by_name(node_t *node, const char *
   return NULL; // Not found
 }
 
-void node_dump(node_t *node) {
+static inline void node_dump(node_t *node) {
   if (!node) { return; }
   printf("Node name: %s\n", node->node_name);
   for (int i = 0; i < MAX_INTF_PER_NODE; i++) {
@@ -139,7 +142,7 @@ static inline graph_t* graph_init(const char *topology_name) {
   return resp;
 }
 
-void graph_dump(graph_t *graph) {
+static inline void graph_dump(graph_t *graph) {
   node_t *node;
   glthread_t *curr;
   printf("Topology name: %s\n", graph->topology_name);
@@ -205,6 +208,4 @@ static void link_nodes(node_t *node1, node_t *node2, const char *from_if_name, c
   slot_index = node_get_usable_interface_index(node2);
   node2->intf[slot_index] = &new_link->intf2;
 }
-
-
 
