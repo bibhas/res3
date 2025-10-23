@@ -33,5 +33,10 @@ int main(int argc, const char **argv) {
   mac_addr_t mac0 = {.bytes = {0x08,0xc0,0xeb,0x62,0x40,0xb9}};
   printf( "mac0: " MAC_ADDR_FMT "\n", MAC_ADDR_BYTES_BE(mac0));
 
+  mac_addr_t mac1 = {0};
+  resp = mac_addr_try_parse("a:b:c:d:e:f", &mac1);
+  EXPECT(resp == true, "mac_addr_try_parse failed");
+  printf( "mac1: " MAC_ADDR_FMT "\n", MAC_ADDR_BYTES_BE(mac1));
+
   return 0;
 }

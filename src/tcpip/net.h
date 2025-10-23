@@ -7,6 +7,7 @@
 // Forward declarations
 
 typedef struct node_t node_t;
+typedef struct interface_t interface_t;
 
 #pragma mark -
 
@@ -50,6 +51,8 @@ struct __attribute__((packed)) mac_addr_t {
 
 typedef struct mac_addr_t mac_addr_t;
 
+bool mac_addr_try_parse(const char *addrstr, mac_addr_t *out);
+
 #pragma mark -
 
 // Node Network Properties
@@ -87,4 +90,5 @@ struct interface_netprop_t {
 typedef struct interface_netprop_t interface_netprop_t;
 
 void interface_netprop_init(interface_netprop_t *prop);
+bool interface_assign_mac_address(interface_t *interface, const char *addrstr);
 
