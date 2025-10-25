@@ -202,7 +202,7 @@ void node_dump_netprop(node_t *n) {
   if (!n->netprop.loopback.configured) {
     return;
   }
-  dump_line("Loopback address: " IPV4_ADDR_FMT "\n", IPV4_ADDR_BYTES_LE(n->netprop.loopback.addr));
+  dump_line("Loopback address: " IPV4_ADDR_FMT "\n", IPV4_ADDR_BYTES_BE(n->netprop.loopback.addr));
 }
 
 #pragma mark -
@@ -232,7 +232,7 @@ void interface_dump_netprop(interface_t *i) {
   dump_line_indentation_add(1);
   dump_line("Configured?: %s\n", i->netprop.ip.configured ? "true" : "false");
   if (i->netprop.ip.configured) {
-    dump_line("Address: " IPV4_ADDR_FMT "\n", IPV4_ADDR_BYTES_LE(i->netprop.ip.addr));
+    dump_line("Address: " IPV4_ADDR_FMT "\n", IPV4_ADDR_BYTES_BE(i->netprop.ip.addr));
     dump_line("Mask: %u\n", i->netprop.ip.mask);
   }
 }
