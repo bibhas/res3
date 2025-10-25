@@ -36,6 +36,7 @@ void interface_dump(interface_t *interface);
 
 #define INTF_MAC(INTFPTR) &((INTFPTR)->netprop.mac_addr)
 #define INTF_IP(INTFPTR) &((INTFPTR)->netprop.ip.addr)
+#define INTF_IP_SUBNET_MASK(INTFPTR) &((INTFPTR)->netprop.ip.mask)
 #define INTF_IS_L3_MODE(INTFPTR) (INTFPTR)->netprop.ip.configured
 
 #pragma mark -

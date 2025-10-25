@@ -6,139 +6,6 @@
 
 #pragma mark -
 
-// IPv4 Address
-
-bool ipv4_addr_try_parse(const char *addrstr, ipv4_addr_t *out) {
-  // Sanity check
-  EXPECT_RETURN_BOOL(addrstr != nullptr, "Empty address string param", false);
-  EXPECT_RETURN_BOOL(out != nullptr, "Empty out ptr param", false);
-  // Use a union so we can easily fill the individual bytes and then read the
-  // combined 32-bit integer without worrying about bit shifting manually.
-  union {
-    uint32_t value;
-    uint8_t bytes[4];
-  } resp = {0};
-  int acc = 0;    // Accumulator for current octet (0-255)
-  int mult = 1;   // Decimal multipler (1, 10, 100)
-  int digits = 0; // Digits in current octet
-  int bytes = 3;  // Bytes to process
-  // Traverse the string from right-to-left
-  for (int i = strlen(addrstr) - 1; i >= 0; i--) {
-    char c = addrstr[i];
-    if (c == '\0' && i == strlen(addrstr) - 1) {
-      continue; // Ignore null terminator at the end
-    }
-    else if (c == '.') {
-      // A period marks the end of an octet.
-      // We could get a period without seeing any numbers. That is invalid.
-      // For eg. 192.168.1. <-
-      EXPECT_RETURN_BOOL(digits != 0, "No digits", false);
-      EXPECT_RETURN_BOOL(acc <= 255, "Octet overflow", false);
-      EXPECT_RETURN_BOOL(bytes >= 0, "More than three periods", false);
-      resp.bytes[bytes] = acc;
-      bytes--;
-      acc = 0;    // Reset accumulator for next octet
-      mult = 1;   // Reset decimal multipler for next octet
-      digits = 0; // Reset digit counter for next octet
-    }
-    else if (c >= '0' && c <= '9') {
-      acc += (c - '0') * mult; 
-      mult *= 10;
-      digits++;
-      // We could get more than 3 digits, which is invalid.
-      // For eg. 192.168.0.0001 <- 
-      EXPECT_RETURN_BOOL(digits <= 3, "More than 3 digits per octet", false);
-    }
-    else {
-      // Got something other than '.' or digits
-      ERR_RETURN_BOOL("Invalid character", false);
-    }
-  }
-  // The 0th octet will not have a period before it, so we need to manually
-  // consider it.
-  EXPECT_RETURN_BOOL(digits != 0, "No digits", false);
-  EXPECT_RETURN_BOOL(acc <= 255, "Octer overflow", false);
-  EXPECT_RETURN_BOOL(bytes >= 0, "More than three periods", false);
-  resp.bytes[0] = acc;
-  // Fill the return object
-  out->value = resp.value;
-  // And, we're done
-  return true;
-}
-
-#pragma mark -
-
-// MAC address
-
-bool mac_addr_try_parse(const char *addrstr, mac_addr_t *out) {
-  // Sanity check
-  EXPECT_RETURN_BOOL(addrstr != nullptr, "Empty address string param", false);
-  EXPECT_RETURN_BOOL(out != nullptr, "Empty out ptr param", false);
-  // Use a union so we can easily fill the individual bytes and then read the
-  // combined 32-bit integer without worrying about bit shifting manually.
-  union {
-    uint64_t value:48;
-    uint8_t bytes[6];
-  } resp = {0};
-  int acc = 0;    // Accumulator for current octet (0-255)
-  int mult = 1;   // Decimal multipler (1, 10, 100)
-  int digits = 0; // Digits in current octet
-  int bytes = 5;  // Bytes to process
-  // Traverse the string from right-to-left
-  int i = strlen(addrstr) - 1;
-  while (i >= 0) {
-    char c = addrstr[i];
-    if (c == '\0' && i == strlen(addrstr) - 1) {
-      continue; // Ignore null terminator at the end
-    }
-    else if (c == ':') {
-      // A colon marks the end of an octet.
-      // We could get a colon without seeing any numbers. That is valid
-      EXPECT_RETURN_BOOL(bytes >= 0, "More than six bytes", false);
-      EXPECT_RETURN_BOOL(acc <= 255, "Octet overflow", false);
-      resp.bytes[bytes] = acc;
-      bytes--;
-      acc = 0;    // Reset accumulator for next octet
-      mult = 1;   // Reset decimal multipler for next octet
-      digits = 0; // Reset digit counter for next octet
-    }
-    else if ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')) {
-      uint8_t val = 0;
-      if (c >= '0' && c <= '9') { val = c - '0'; }
-      else if (c >= 'A' && c <= 'F') { val = 10 + c - 'A'; }
-      else { val = 10 + c - 'a'; }
-      acc += val * mult; 
-      mult *= 16; // Base 16
-      digits++;
-      // We could get more than 3 digits, which is invalid.
-      // For eg. 192.168.0.0001 <- 
-      EXPECT_RETURN_BOOL(digits <= 2, "More than 2 digits per octet", false);
-    }
-    else if (c == 'x' || c == 'X') {
-      EXPECT_RETURN_BOOL(i > 0, "Got a leading x character", false);
-      EXPECT_RETURN_BOOL(addrstr[i - 1] == '0', "Invalid x character", false);
-      i--; // Skip the 0 in 0x
-    }
-    else {
-      // Got something other than '.' or digits
-      ERR_RETURN_BOOL("Invalid character", false);
-    }
-    i--;
-  }
-  // The 0th octet will not have a colon before it, so we need to manually
-  // consider it.
-  EXPECT_RETURN_BOOL(digits != 0, "No digits", false);
-  EXPECT_RETURN_BOOL(acc <= 255, "Octer overflow", false);
-  EXPECT_RETURN_BOOL(bytes >= 0, "More than five colons", false);
-  resp.bytes[0] = acc;
-  // Fill the return object
-  out->value = resp.value;
-  // And, we're done
-  return true;
-}
-
-#pragma mark -
-
 // Node
 
 void node_netprop_init(node_netprop_t *prop) {
@@ -203,6 +70,25 @@ void node_dump_netprop(node_t *n) {
     return;
   }
   dump_line("Loopback address: " IPV4_ADDR_FMT "\n", IPV4_ADDR_BYTES_BE(n->netprop.loopback.addr));
+}
+
+bool node_get_interface_matching_subnet(node_t *n, ipv4_addr_t *addr, interface_t **out) {
+  EXPECT_RETURN_BOOL(n != nullptr, "Empty node param", false);
+  EXPECT_RETURN_BOOL(addr != nullptr, "Empty subnet address param", false);
+  EXPECT_RETURN_BOOL(out != nullptr, "Empty out interface param", false);
+  for (int i = 0; i < MAX_INTF_PER_NODE; i++) {
+    if (!n->intf[i]) { continue; }
+    interface_t *intf = n->intf[i];
+    if (!INTF_IS_L3_MODE(intf)) { continue; }
+    ipv4_addr_t subnet;
+    bool resp = ipv4_addr_apply_mask(INTF_IP(intf), *INTF_IP_SUBNET_MASK(intf), &subnet);
+    EXPECT_RETURN_BOOL(resp == true, "ipv4_addr_apply_mask failed", false);
+    if (subnet.value == addr->value) {
+      *out = intf;
+      return true;
+    }
+  }
+  return false;
 }
 
 #pragma mark -
