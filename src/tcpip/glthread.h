@@ -22,7 +22,7 @@ struct glthread_t {
     return (struct_name *)((char *)(glthreadptr) - (char *)&(((struct_name *)0)->field_name)); \
   }
 
-static inline void init_glthread(glthread_t *curr) {
+static inline void glthread_init(glthread_t *curr) {
   if (!curr) { return; }
   curr->left = NULL;
   curr->right = NULL;
