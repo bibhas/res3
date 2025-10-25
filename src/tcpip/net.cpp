@@ -219,7 +219,9 @@ void interface_netprop_init(interface_netprop_t *prop) {
 bool interface_assign_mac_address(interface_t *interface, const char *addrstr) {
   EXPECT_RETURN_BOOL(interface != nullptr, "Empty interface param", false);
   EXPECT_RETURN_BOOL(addrstr != nullptr, "Empty address string param", false);
-  return false;
+  int resp = mac_addr_try_parse(addrstr, &interface->netprop.mac_addr);
+  EXPECT_RETURN_BOOL(resp == true, "mac_addr_try_parse failed", false);
+  return true;
 }
 
 void interface_dump_netprop(interface_t *i) {

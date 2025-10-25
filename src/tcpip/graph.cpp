@@ -41,6 +41,13 @@ void interface_dump(interface_t *interface) {
 
 #pragma mark -
 
+static inline bool next_mac_str(char *resp) {
+  static int counter = 1;
+  EXPECT_RETURN_BOOL(counter < 256, "Too many calls (>255) to next_mac", false);
+  snprintf(resp, 18, "aa:bb:cc:dd:ee:%02x", counter++);
+  return true;
+}
+
 // Link
 
 void link_nodes(node_t *n1, node_t *n2, const char *name1, const char *name2, uint32_t cost) {
@@ -52,10 +59,21 @@ void link_nodes(node_t *n1, node_t *n2, const char *name1, const char *name2, ui
   COPY_STRING_TO(new_link->intf1.if_name, name1, IF_NAME_SIZE);
   new_link->intf1.link = new_link;
   new_link->intf1.att_node = n1;
+  interface_netprop_init(&new_link->intf1.netprop);
+  char addr_buf[18] = {0};
+  bool status = next_mac_str(addr_buf);
+  EXPECT_RETURN(status == true, "next_mac_str failed");
+  status = interface_assign_mac_address(&new_link->intf1, addr_buf);
+  EXPECT_RETURN(status == true, "interface_assign_mac_address intf1 failed");
   // Setup interface 2
   COPY_STRING_TO(new_link->intf2.if_name, name2, IF_NAME_SIZE);
   new_link->intf2.link = new_link;
   new_link->intf2.att_node = n2;
+  interface_netprop_init(&new_link->intf2.netprop);
+  status = next_mac_str(addr_buf);
+  EXPECT_RETURN(status == true, "next_mac_str failed");
+  status = interface_assign_mac_address(&new_link->intf2, addr_buf);
+  EXPECT_RETURN(status == true, "interface_assign_mac_address intf2 failed");
   // Fill out the cost
   new_link->cost = cost;
   // Find and populate an empty interface in n1
@@ -128,7 +146,7 @@ graph_t* graph_init(const char *topology_name) {
   // Set name
   COPY_STRING_TO(resp->topology_name, topology_name, GRAPH_NAME_SIZE);
   // Initialize node_list
-  init_glthread(&resp->node_list);
+  glthread_init(&resp->node_list);
   // And, we're done.
   return resp;
 }
@@ -155,8 +173,10 @@ node_t *graph_add_node(graph_t *graph, const char *node_name) {
   // Set name
   COPY_STRING_TO(resp->node_name, node_name, NODE_NAME_SIZE);
   // Initialize thread
-  init_glthread(&resp->graph_glue);
+  glthread_init(&resp->graph_glue);
   glthread_add_next(&graph->node_list, &resp->graph_glue);
+  // Initialize network properties
+  node_netprop_init(&resp->netprop);
   return resp;
 }
 

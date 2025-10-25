@@ -34,6 +34,10 @@ struct interface_t {
 node_t* interface_get_neighbor_node(interface_t *interface);
 void interface_dump(interface_t *interface);
 
+#define INTF_MAC(INTFPTR) &((INTFPTR)->netprop.mac_addr)
+#define INTF_IP(INTFPTR) &((INTFPTR)->netprop.ip.addr)
+#define INTF_IS_L3_MODE(INTFPTR) (INTFPTR)->netprop.ip.configured
+
 #pragma mark -
 
 // Link
@@ -67,6 +71,8 @@ DEFINE_GLTHREAD_TO_STRUCT_FUNC(
   node_t,                     // return type
   graph_glue                  // glthread_t* field in node_t
 );
+
+#define NODE_LO_ADDR(NODEPTR) &((NODEPTR)->netprop.loopback.addr)
 
 #pragma mark -
 
