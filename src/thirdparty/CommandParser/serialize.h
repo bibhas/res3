@@ -1,6 +1,10 @@
 #ifndef __SERIALIZE__
 #define __SERIALIZE__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Data types supported*/
 
 
@@ -90,5 +94,8 @@ do{                                                                             
     buff->next += sizeof(type);							\
 }while(0);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif
