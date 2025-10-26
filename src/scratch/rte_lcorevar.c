@@ -23,7 +23,7 @@ static int lcore_hello(__rte_unused void *arg) {
 
 RTE_INIT(workerstate_init) { // Called before main()
   // Allocate lcore variable
-  RTE_LCORE_VAR_ALLOC(lcore_workerstates);
+  workerstate_t * a = (workerstate_t *)RTE_LCORE_VAR_ALLOC(lcore_workerstates);
   // Initialize variable for all lcores
   unsigned int lcore_id;
   workerstate_t *instance;
