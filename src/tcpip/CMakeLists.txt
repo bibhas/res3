@@ -5,8 +5,12 @@ set(common_sources
 )
 
 utils_add_executable(tcpip
-  SOURCES "tcpip.cpp" ${common_sources} 
+  SOURCES ${common_sources} 
+          "tcpip.cpp" 
+          "cli.cpp"
   LINKS libcli
+  CFLAGS "-DVERBOSE" "-mssse3"
+  DEFINES "TARGETNAME=\"tcpip\""
 )
 
 utils_add_executable(nettest

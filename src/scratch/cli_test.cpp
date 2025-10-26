@@ -13,7 +13,7 @@
 
 #define CMD_CODE_SHOW_NODE 1
 
-int node_callback_handler(param_t *param, ser_buff_t *tlv_buf, op_mode enable_or_disable) {
+int node_callback_handler(param_t *param, ser_buff_t *tlv_buf, op_mode mode) {
   printf("%s() is called\n", __FUNCTION__);
   return 0;
 }
@@ -28,7 +28,7 @@ int validate_node_name(char *value) {
 
 #define CMD_CODE_SHOW_NODE_LOOPBACK 2
 
-int node_loopback_callback_handler(param_t *param, ser_buff_t *tlv_buf, op_mode enable_or_disable) {
+int node_loopback_callback_handler(param_t *param, ser_buff_t *tlv_buf, op_mode mode) {
   printf("%s() is called\n", __FUNCTION__);
   int cmd_code = EXTRACT_CMD_CODE(tlv_buf);
   printf("cmd_code = %d (!)\n", cmd_code);

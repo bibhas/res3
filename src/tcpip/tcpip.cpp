@@ -5,6 +5,7 @@
 #include "glthread.h"
 #include "graph.h"
 #include "utils.h"
+#include "cli.h"
 
 graph_t *build_first_topo() {
   graph_t *topo = graph_init("Hello World Generic Graph");
@@ -33,7 +34,9 @@ graph_t *build_first_topo() {
 
 int main(int argc, const char **argv) {
   graph_t *topo = build_first_topo();
-  graph_dump(topo);
+  cli_init();
+  cli_set_topology(topo);
+  cli_runloop();
   return 0;
 }
 

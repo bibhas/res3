@@ -3,6 +3,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <cstdlib>
 #include <iostream>
