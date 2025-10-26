@@ -552,7 +552,8 @@ set_device_name(const char *cons_name){
     if(strlen(console_name))
         tokens = tokenizer(console_name, '>', &token_cnt);
     
-    sprintf(console_name, "%s>", cons_name);
+    //sprintf(console_name, "%s>", cons_name);
+    sprintf(console_name, ANSI_COLOR_GREEN "%s>" ANSI_COLOR_RESET, cons_name);
     
     if(token_cnt > 1){
         strcat(console_name, " ");
