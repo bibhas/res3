@@ -7,8 +7,8 @@
 /*
  * We're going to add the following two commands:
  *
- * CMD1: show node <node_name::string>
- * CMD2: show node <node_name::string> loopback <ipv4_addrress>
+ * CMD1: show node <node-name::STRING>
+ * CMD2: show node <node-name::STRING> loopback <lo-address::IPV4>
  */
 
 #define CMD_CODE_SHOW_NODE 1
@@ -20,6 +20,9 @@ int node_callback_handler(param_t *param, ser_buff_t *tlv_buf, op_mode enable_or
 
 int validate_node_name(char *value) {
   printf("%s() is called with value = %s\n", __FUNCTION__, value);
+  if (strcmp(value, "notnode") == 0) {
+    return VALIDATION_FAILED;
+  }
   return VALIDATION_SUCCESS;
 }
 
@@ -62,6 +65,16 @@ int validate_loopback_address(char *value) {
   return VALIDATION_SUCCESS;
 }
 
+#define CMD_CODE_CONFIG_NODE_LOOPBACK 3
+
+int config_node_loopback_callback_handler(param_t *param, ser_buff_t *tlv_buf, op_mode mode) {
+  printf("%s() is called\n", __FUNCTION__);
+  switch (mode) {
+    case CONFIG_ENABLE: printf("ENABLE\n"); break;
+    case CONFIG_DISABLE: printf("DISABLE\n"); break;
+  }
+  return 0;
+}
 
 int main(int argc, const char **argv) {
   init_libcli();
@@ -93,6 +106,29 @@ int main(int argc, const char **argv) {
           init_param(&loopback_address, LEAF, nullptr, node_loopback_callback_handler, validate_loopback_address, IPV4, "lo-address", "Help : Node's loopback address");
           libcli_register_param(&loopback, &loopback_address);
           set_param_cmd_code(&loopback_address, CMD_CODE_SHOW_NODE_LOOPBACK);
+        }
+      }
+    }
+  }  
+
+  /*CMD3: config node <node-name::STRING> loopback <lo-address::IPV4> */
+  {
+    static param_t node;
+    init_param(&node, CMD, "node", nullptr, nullptr, INVALID, nullptr, "Help : node");
+    libcli_register_param(config, &node); 
+    {
+      static param_t node_name;
+      init_param(&node_name, LEAF, nullptr, nullptr, validate_node_name, STRING, "node-name", "Help : Node name");
+      libcli_register_param(&node, &node_name);
+      {
+        static param_t loopback;
+        init_param(&loopback, CMD, "loopback", nullptr, nullptr, INVALID, nullptr, "Help : loopback");
+        libcli_register_param(&node_name, &loopback);
+        {
+          static param_t loopback_address;
+          init_param(&loopback_address, LEAF, nullptr, config_node_loopback_callback_handler, validate_loopback_address, IPV4, "lo-address", "Help : Node's loopback address");
+          libcli_register_param(&loopback, &loopback_address);
+          set_param_cmd_code(&loopback_address, CMD_CODE_CONFIG_NODE_LOOPBACK);
         }
       }
     }
