@@ -27,6 +27,33 @@ int validate_node_name(char *value) {
 
 int node_loopback_callback_handler(param_t *param, ser_buff_t *tlv_buf, op_mode enable_or_disable) {
   printf("%s() is called\n", __FUNCTION__);
+  int cmd_code = EXTRACT_CMD_CODE(tlv_buf);
+  printf("cmd_code = %d (!)\n", cmd_code);
+
+  tlv_struct_t *tlv = NULL;
+  char *node_name = NULL;
+  char *lo_address = NULL;
+
+  int count = 0;
+  TLV_LOOP_BEGIN(tlv_buf, tlv) {
+    count++;
+    if (strncmp(tlv->leaf_id, "node-name", strlen("node-name")) == 0) {
+      node_name = tlv->value;
+    }
+    else if (strncmp(tlv->leaf_id, "lo-address", strlen("lo-address")) == 0) {
+      lo_address = tlv->value;
+    }
+  } TLV_LOOP_END;
+
+  printf("TLV buffer size: %d\n", count);
+
+  switch (cmd_code) {
+    case CMD_CODE_SHOW_NODE_LOOPBACK:
+      printf("node_name = %s, lo-address = %s\n", node_name, lo_address);
+      break;
+    default:
+      ;
+  }
   return 0;
 }
 
