@@ -14,8 +14,8 @@ foreach(FILE ${CPP_FILES})
     SOURCES ${FILE}
     # Edit target properties below
     INCLUDES ${IBVERBS_INCLUDE_DIRS} ${DPDK_INCLUDE_DIRS}
-    LINKS ${IBVERBS_LIBRARIES} ${DPDK_LIBRARIES}
-    CFLAGS "-DVERBOSE" "-fpermissive" "-mssse3"
+    LINKS ${IBVERBS_LIBRARIES} ${DPDK_LIBRARIES} libcli
+    CFLAGS "-DVERBOSE" "-mssse3"
   )
 endforeach()
 

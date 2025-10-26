@@ -126,7 +126,9 @@ def run(src, debug, build_first):
     src_bin = pathlib.Path(_src).name
     utils.LOG_INFO(f"Running `{src_bin}`...")
     os.chdir(utils.project_source_dir_path() / "build")
-    if os.system(f"gdb {_src}" if debug else _src) != 0:
+    resp = os.system(f"gdb {_src}" if debug else _src) 
+    #print("code:", resp)
+    if resp < 0:
       utils.LOG_ERROR(f"Run failed {src_bin}!")
       exit(-1)
   utils.LOG_SUCCESS("▪︎")

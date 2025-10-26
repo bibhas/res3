@@ -6,6 +6,7 @@ set(common_sources
 
 utils_add_executable(tcpip
   SOURCES "tcpip.cpp" ${common_sources} 
+  LINKS libcli
 )
 
 utils_add_executable(nettest
