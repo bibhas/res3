@@ -24,6 +24,7 @@
 #define EXPECT_RETURN_BOOL(COND, MSG, RET) if (!(COND)) { printf("[ERR] %s\n", MSG); return RET; }
 #define EXPECT_RETURN_VAL(COND, MSG, RET) if (!(COND)) { printf("[ERR] %s\n", MSG); return RET; }
 #define EXPECT_RETURN(COND, MSG) if (!(COND)) { printf("[ERR] %s\n", MSG); return; }
+#define EXPECT_CONTINUE(COND, MSG) if (!(COND)) { printf("[ERR] %s\n", MSG); continue; }
 #define ERR_RETURN_BOOL(MSG, RET) printf("[ERR] %s\n", MSG); return RET;
 
 #pragma mark -

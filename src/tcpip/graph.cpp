@@ -1,8 +1,8 @@
 // graph.cpp
-
 #include "graph.h"
 #include "utils.h"
 #include "net.h"
+#include "comm.h"
 
 #pragma mark -
 
@@ -84,6 +84,24 @@ void link_nodes(node_t *n1, node_t *n2, const char *name1, const char *name2, ui
   n2->intf[slot_index] = &new_link->intf2;
 }
 
+bool link_get_other_interface(link_t *l, interface_t *intf, interface_t **otherptr) {
+  EXPECT_RETURN_BOOL(l != nullptr, "Empty link param", false);
+  EXPECT_RETURN_BOOL(intf != nullptr, "Empty intf param", false);
+  EXPECT_RETURN_BOOL(otherptr != nullptr, "Empty out intf ptr param", false);
+  if (&l->intf1 == intf) {  // TODO: replace ptr comparision with a better alternative
+    *otherptr = &l->intf2; 
+    return true; 
+  }
+  else if (&l->intf2 == intf) { 
+    *otherptr = &l->intf1; 
+    return true; 
+  }
+  else { 
+    *otherptr = nullptr; 
+    return false; 
+  }
+}
+
 #pragma mark -
 
 // Node
@@ -106,7 +124,7 @@ interface_t* node_get_interface_by_name(node_t *node, const char *if_name) {
   for (int i = 0; i < MAX_INTF_PER_NODE; i++) {
     if (!node->intf[i]) { continue; }
     interface_t *candidate = node->intf[i];
-    if (strcmp(candidate->if_name, if_name) == 0) {
+    if (strncmp(candidate->if_name, if_name, IF_NAME_SIZE) == 0) {
       return candidate;
     }
   }
@@ -119,6 +137,8 @@ void node_dump(node_t *node) {
   // Node name
   dump_line("Node name: %s\n", node->node_name);
   dump_line_indentation_add(1);
+  // UDP port
+  dump_line("UDP port: %d\n", node->udp.port);
   // Network properties
   dump_line_indentation_push();
   dump_line("Network Properties:\n");
@@ -177,6 +197,9 @@ node_t *graph_add_node(graph_t *graph, const char *node_name) {
   glthread_add_next(&graph->node_list, &resp->graph_glue);
   // Initialize network properties
   node_netprop_init(&resp->netprop);
+  // Start udp socket
+  bool status = comm_udp_socket_setup(&resp->udp.port, &resp->udp.fd);
+  EXPECT_RETURN_VAL(status == true, "node_setup_udp_socket failed", nullptr);
   return resp;
 }
 

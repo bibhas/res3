@@ -2,6 +2,7 @@ set(common_sources
   "net.cpp"
   "graph.cpp"
   "utils.cpp"
+  "comm.cpp"
 )
 
 utils_add_executable(tcpip

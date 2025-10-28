@@ -50,6 +50,7 @@ struct link_t {
 };
 
 void link_nodes(node_t *n0, node_t *n1, const char *name0, const char *name1, uint32_t cost);
+bool link_get_other_interface(link_t *l, interface_t *intf, interface_t **otherptr);
 
 #pragma mark -
 
@@ -59,6 +60,10 @@ struct node_t {
   char node_name[NODE_NAME_SIZE];
   interface_t *intf[MAX_INTF_PER_NODE];
   glthread_t graph_glue;
+  struct {
+    uint32_t port;
+    int fd;
+  } udp;
   node_netprop_t netprop;
 };
 

@@ -1,11 +1,14 @@
 // tcpip.cpp
 
+#include <thread>
+#include <chrono>
 #include <iostream>
 #include <string.h>
 #include "glthread.h"
 #include "graph.h"
 #include "utils.h"
 #include "cli.h"
+#include "comm.h"
 
 graph_t *build_first_topo() {
   graph_t *topo = graph_init("Hello World Generic Graph");
@@ -34,8 +37,26 @@ graph_t *build_first_topo() {
 
 int main(int argc, const char **argv) {
   graph_t *topo = build_first_topo();
+  // Setup CLI
   cli_init();
+  // Create graph
   cli_set_topology(topo);
+  printf("Starting...\n");
+  // Start receiver thread
+  std::jthread receiver_thread([&] {
+    comm_pkt_receiver_thread_main(topo);
+  });
+  printf("Waiting...\n");
+  while (!comm_pkt_receiver_thread_ready()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  // Do some packet processing
+  node_t *sender = graph_find_node_by_name(topo, "R0_re");
+  interface_t *sender_intf = node_get_interface_by_name(sender, "eth0/0");
+  const char *msg = "Hello, how are you bibhas?\0";
+  comm_pkt_send_bytes((uint8_t *)msg, strlen(msg), sender_intf);
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  // Start cli runloop
   cli_runloop();
   return 0;
 }
