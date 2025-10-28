@@ -35,8 +35,29 @@ graph_t *build_first_topo() {
   return topo;
 }
 
+graph_t *build_linear_topo() {
+  graph_t *topo = graph_init("Linear Topo");
+  node_t *H1 = graph_add_node(topo, "H1");
+  node_t *H2 = graph_add_node(topo, "H2");
+  node_t *H3 = graph_add_node(topo, "H3");
+
+  link_nodes(H1, H2, "eth0/1", "eth0/2", 1);
+  link_nodes(H2, H3, "eth0/3", "eth0/4", 1);
+
+  node_set_loopback_address(H1, "122.1.1.1");
+  node_set_loopback_address(H2, "122.1.1.2");
+  node_set_loopback_address(H3, "122.1.1.3");
+
+  node_set_interface_ipv4_address(H1, "eth0/1", "10.1.1.1", 24);
+  node_set_interface_ipv4_address(H2, "eth0/2", "10.1.1.2", 24);
+  node_set_interface_ipv4_address(H2, "eth0/3", "20.1.1.2", 24);
+  node_set_interface_ipv4_address(H3, "eth0/4", "20.1.1.1", 24);
+
+  return topo;
+}
+
 int main(int argc, const char **argv) {
-  graph_t *topo = build_first_topo();
+  graph_t *topo = build_linear_topo();
   // Setup CLI
   cli_init();
   // Create graph
@@ -50,12 +71,6 @@ int main(int argc, const char **argv) {
   while (!comm_pkt_receiver_thread_ready()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
-  // Do some packet processing
-  node_t *sender = graph_find_node_by_name(topo, "R0_re");
-  interface_t *sender_intf = node_get_interface_by_name(sender, "eth0/0");
-  const char *msg = "Hello, how are you bibhas?\0";
-  comm_pkt_send_bytes((uint8_t *)msg, strlen(msg), sender_intf);
-  std::this_thread::sleep_for(std::chrono::milliseconds(200));
   // Start cli runloop
   cli_runloop();
   return 0;
