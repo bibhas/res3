@@ -56,11 +56,19 @@ int comm_pkt_receive_bytes(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t 
   return -1; // Number of bytes sent
 }
 
-int comm_pkt_send_flood_bytes(node_t *n, uint8_t *pkt, uint32_t pktlen) {
-  EXPECT_RETURN_BOOL(n != nullptr, "Empty node ptr param", false);
-  EXPECT_RETURN_BOOL(pkt != nullptr, "Empty packet ptr param", false);
-  // TODO
-  return -1; // Number of bytes sent
+int comm_pkt_send_flood_bytes(node_t *n, interface_t *ign_intf, uint8_t *pkt, uint32_t pktlen) {
+  EXPECT_RETURN_VAL(n != nullptr, "Empty node ptr param", -1);
+  EXPECT_RETURN_VAL(pkt != nullptr, "Empty packet ptr param", -1);
+  int acc = 0;
+  for (int i = 0; i < MAX_INTF_PER_NODE; i++) {
+    if (!n->intf[i]) { continue; }
+    interface_t *candidate = n->intf[i];
+    if (candidate == ign_intf) { continue; } // ignored interface
+    int resp = comm_pkt_send_bytes(pkt, pktlen, candidate); 
+    EXPECT_CONTINUE(resp == pktlen, "comp_pkt_send_bytes failed");
+    acc += resp;
+  }
+  return acc; // Number of bytes sent
 }
 
 bool comm_udp_socket_setup(uint32_t *port, int *fd) {
