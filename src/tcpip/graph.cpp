@@ -56,7 +56,7 @@ void link_nodes(node_t *n1, node_t *n2, const char *name1, const char *name2, ui
   // Allocate link
   link_t *new_link = (link_t *)malloc(sizeof(link_t));
   // Setup interface 1
-  COPY_STRING_TO(new_link->intf1.if_name, name1, IF_NAME_SIZE);
+  COPY_STRING_TO(new_link->intf1.if_name, name1, CONFIG_IF_NAME_SIZE);
   new_link->intf1.link = new_link;
   new_link->intf1.att_node = n1;
   interface_netprop_init(&new_link->intf1.netprop);
@@ -66,7 +66,7 @@ void link_nodes(node_t *n1, node_t *n2, const char *name1, const char *name2, ui
   status = interface_assign_mac_address(&new_link->intf1, addr_buf);
   EXPECT_RETURN(status == true, "interface_assign_mac_address intf1 failed");
   // Setup interface 2
-  COPY_STRING_TO(new_link->intf2.if_name, name2, IF_NAME_SIZE);
+  COPY_STRING_TO(new_link->intf2.if_name, name2, CONFIG_IF_NAME_SIZE);
   new_link->intf2.link = new_link;
   new_link->intf2.att_node = n2;
   interface_netprop_init(&new_link->intf2.netprop);
@@ -111,7 +111,7 @@ int node_get_usable_interface_index(node_t *node) {
   if (!node) { return -1; }
   // Iterate over all the interfaces and find the first
   // one with an empty link slot.
-  for (int i = 0; i < MAX_INTF_PER_NODE; i++) {
+  for (int i = 0; i < CONFIG_MAX_INTF_PER_NODE; i++) {
     if (node->intf[i]) { continue; }
     // Empty link slot
     return i;
@@ -121,10 +121,10 @@ int node_get_usable_interface_index(node_t *node) {
 
 interface_t* node_get_interface_by_name(node_t *node, const char *if_name) {
   if (!node || !if_name) { return NULL; }
-  for (int i = 0; i < MAX_INTF_PER_NODE; i++) {
+  for (int i = 0; i < CONFIG_MAX_INTF_PER_NODE; i++) {
     if (!node->intf[i]) { continue; }
     interface_t *candidate = node->intf[i];
-    if (strncmp(candidate->if_name, if_name, IF_NAME_SIZE) == 0) {
+    if (strncmp(candidate->if_name, if_name, CONFIG_IF_NAME_SIZE) == 0) {
       return candidate;
     }
   }
@@ -146,7 +146,7 @@ void node_dump(node_t *node) {
   node_dump_netprop(node);
   dump_line_indentation_pop();
   // Interfaces
-  for (int i = 0; i < MAX_INTF_PER_NODE; i++) {
+  for (int i = 0; i < CONFIG_MAX_INTF_PER_NODE; i++) {
     if (!node->intf[i]) { continue; }
     dump_line_indentation_guard_t guard1;
     dump_line("Interface: %s\n", node->intf[i]->if_name);
@@ -164,7 +164,7 @@ graph_t* graph_init(const char *topology_name) {
   // Allocate memory
   graph_t *resp = (graph_t *)malloc(sizeof(graph_t));
   // Set name
-  COPY_STRING_TO(resp->topology_name, topology_name, GRAPH_NAME_SIZE);
+  COPY_STRING_TO(resp->topology_name, topology_name, CONFIG_GRAPH_NAME_SIZE);
   // Initialize node_list
   glthread_init(&resp->node_list);
   // And, we're done.
@@ -191,7 +191,7 @@ node_t *graph_add_node(graph_t *graph, const char *node_name) {
   // Allocate node
   node_t *resp = (node_t *)malloc(sizeof(node_t));
   // Set name
-  COPY_STRING_TO(resp->node_name, node_name, NODE_NAME_SIZE);
+  COPY_STRING_TO(resp->node_name, node_name, CONFIG_NODE_NAME_SIZE);
   // Initialize thread
   glthread_init(&resp->graph_glue);
   glthread_add_next(&graph->node_list, &resp->graph_glue);

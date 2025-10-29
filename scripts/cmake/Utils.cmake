@@ -50,6 +50,7 @@ macro(utils_add_executable USER_EXE_NAME)
     "${multiValueArgs}" 
     ${ARGN})
   add_executable(${USER_EXE_NAME})
+  target_compile_definitions(${USER_EXE_NAME} PUBLIC "-DTARGET_NAME=\"${USER_EXE_NAME}\"")
   if(DEFINED USER_EXE_EXTENDS)
     target_link_libraries(${USER_EXE_NAME} PUBLIC ${USER_EXE_EXTENDS})
   endif()
@@ -74,7 +75,6 @@ macro(utils_add_executable USER_EXE_NAME)
   set_target_properties(${USER_EXE_NAME} PROPERTIES 
     LINKER_LANGUAGE C
   )
-  target_compile_definitions(${USER_EXE_NAME} PUBLIC "-DTARGET_NAME=\"${USER_EXE_NAME}\"")
 endmacro()
 
 macro(utils_add_static_library USER_LIB_NAME)

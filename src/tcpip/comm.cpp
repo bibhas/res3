@@ -6,11 +6,11 @@
 #include <arpa/inet.h>
 #include "layer2/layer2.h"
 #include "comm.h"
+#include "config.h"
 
-#define MAX_PACKET_BUFFER_SIZE   2048
-static uint8_t __recv_buffer[MAX_PACKET_BUFFER_SIZE];
-static uint8_t __temp_buffer[MAX_PACKET_BUFFER_SIZE];
-static uint8_t __send_buffer[MAX_PACKET_BUFFER_SIZE];
+static uint8_t __recv_buffer[CONFIG_MAX_PACKET_BUFFER_SIZE];
+static uint8_t __temp_buffer[CONFIG_MAX_PACKET_BUFFER_SIZE];
+static uint8_t __send_buffer[CONFIG_MAX_PACKET_BUFFER_SIZE];
 static std::atomic<bool> __receiver_thread_ready(false);
 
 int comm_pkt_send_bytes(uint8_t *pkt, uint32_t pktlen, interface_t *intf) {
@@ -27,18 +27,18 @@ int comm_pkt_send_bytes(uint8_t *pkt, uint32_t pktlen, interface_t *intf) {
   interface_t *intf2 = nullptr;
   bool found = link_get_other_interface(intf->link, intf, &intf2);
   EXPECT_RETURN_VAL(found == true, "link_get_other_interface failed", -1);
-  memset(__send_buffer, 0, MAX_PACKET_BUFFER_SIZE);
+  memset(__send_buffer, 0, CONFIG_MAX_PACKET_BUFFER_SIZE);
   // Append null terminated dest interface name
-  strncpy((char *)__send_buffer, intf2->if_name, IF_NAME_SIZE); 
-  __send_buffer[IF_NAME_SIZE] = '\0';
+  strncpy((char *)__send_buffer, intf2->if_name, CONFIG_IF_NAME_SIZE);
+  __send_buffer[CONFIG_IF_NAME_SIZE] = '\0';
   // Append rest of the data
-  memcpy((void *)(__send_buffer + IF_NAME_SIZE), (void *)pkt, pktlen);
+  memcpy((void *)(__send_buffer + CONFIG_IF_NAME_SIZE), (void *)pkt, pktlen);
   // Finally, send packet
   struct sockaddr_in addr;
   addr.sin_family = AF_INET;
   addr.sin_port = htons(nbr->udp.port);
   addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  int resp = sendto(fd, __send_buffer, pktlen + IF_NAME_SIZE, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr));
+  int resp = sendto(fd, __send_buffer, pktlen + CONFIG_IF_NAME_SIZE, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr));
   EXPECT_RETURN_VAL(resp >= 0, "sendto failed", -1);
   // Cleanup
   close(fd);
@@ -51,7 +51,7 @@ int comm_pkt_receive_bytes(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t 
   EXPECT_RETURN_BOOL(pkt != nullptr, "Empty packet ptr param", false);
   // TODO: Why exactly are we shifting the data since we distinguish between
   // send and receive buffers, and as such, they are two different allocations?
-  bool resp = comm_pkt_buffer_shift_right(&pkt, pktlen, MAX_PACKET_BUFFER_SIZE - IF_NAME_SIZE);
+  bool resp = comm_pkt_buffer_shift_right(&pkt, pktlen, CONFIG_MAX_PACKET_BUFFER_SIZE - CONFIG_IF_NAME_SIZE);
   EXPECT_RETURN_VAL(resp == true, "comm_pkt_buffer_shift_right failed", -1);
   return layer2_frame_recv(n, intf, pkt, pktlen);
 }
@@ -60,7 +60,7 @@ int comm_pkt_send_flood_bytes(node_t *n, interface_t *ign_intf, uint8_t *pkt, ui
   EXPECT_RETURN_VAL(n != nullptr, "Empty node ptr param", -1);
   EXPECT_RETURN_VAL(pkt != nullptr, "Empty packet ptr param", -1);
   int acc = 0;
-  for (int i = 0; i < MAX_INTF_PER_NODE; i++) {
+  for (int i = 0; i < CONFIG_MAX_INTF_PER_NODE; i++) {
     if (!n->intf[i]) { continue; }
     interface_t *candidate = n->intf[i];
     if (candidate == ign_intf) { continue; } // ignored interface
@@ -130,16 +130,16 @@ void comm_pkt_receiver_thread_main(graph_t *topo) {
       node_t *n = node_ptr_from_graph_glue(curr);
       if (FD_ISSET(n->udp.fd, &ready_fds)) {
         socklen_t addrlen = sizeof(struct sockaddr);
-        memset(__recv_buffer, 0, MAX_PACKET_BUFFER_SIZE);
+        memset(__recv_buffer, 0, CONFIG_MAX_PACKET_BUFFER_SIZE);
         struct sockaddr_in sender;
-        size_t bytes = recvfrom(n->udp.fd, (char *)__recv_buffer, MAX_PACKET_BUFFER_SIZE, 0, (struct sockaddr *)&sender, &addrlen);
+        size_t bytes = recvfrom(n->udp.fd, (char *)__recv_buffer, CONFIG_MAX_PACKET_BUFFER_SIZE, 0, (struct sockaddr *)&sender, &addrlen);
         printf("read %lu bytes\n", bytes);
         EXPECT_FATAL(bytes >= 0, "recvfrom failed");
         // Do something with received data
         char *target_intf_name = (char *)__recv_buffer; // of size IF_NAME_SIZE
         interface_t *target_intf = node_get_interface_by_name(n, target_intf_name);
         EXPECT_CONTINUE(target_intf != nullptr, "Packet received on unknown interface");
-        resp = comm_pkt_receive_bytes(n, target_intf, __recv_buffer + IF_NAME_SIZE, bytes - IF_NAME_SIZE);
+        resp = comm_pkt_receive_bytes(n, target_intf, __recv_buffer + CONFIG_IF_NAME_SIZE, bytes - CONFIG_IF_NAME_SIZE);
         // TODO: What to do with resp??
       }
     }

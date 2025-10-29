@@ -76,7 +76,7 @@ bool node_get_interface_matching_subnet(node_t *n, ipv4_addr_t *addr, interface_
   EXPECT_RETURN_BOOL(n != nullptr, "Empty node param", false);
   EXPECT_RETURN_BOOL(addr != nullptr, "Empty subnet address param", false);
   EXPECT_RETURN_BOOL(out != nullptr, "Empty out interface param", false);
-  for (int i = 0; i < MAX_INTF_PER_NODE; i++) {
+  for (int i = 0; i < CONFIG_MAX_INTF_PER_NODE; i++) {
     if (!n->intf[i]) { continue; }
     interface_t *intf = n->intf[i];
     if (!INTF_IS_L3_MODE(intf)) { continue; }
@@ -139,7 +139,7 @@ void graph_dump_netprop(graph_t *g) {
     dump_line("Node:\n");
     dump_line_indentation_add(1);
     node_dump_netprop(n); 
-    for (int i = 0; i < MAX_INTF_PER_NODE; i++) {
+    for (int i = 0; i < CONFIG_MAX_INTF_PER_NODE; i++) {
       if (!n->intf[i]) { continue; }
       dump_line_indentation_guard_t guard2;
       dump_line("Interface:\n");

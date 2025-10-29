@@ -10,9 +10,9 @@ struct glthread_t {
 };
 
 #define GLTHREAD_FOREACH_BEGIN(start, ptr) { \
-  glthread_t *_ptr = NULL; \
+  glthread_t *_ptr = nullptr; \
   ptr = (start)->right; \
-  for (; ptr != NULL; ptr = _ptr) { \
+  for (; ptr != nullptr; ptr = _ptr) { \
     _ptr = ptr->right;
 
 #define GLTHREAD_FOREACH_END() }}
@@ -24,8 +24,8 @@ struct glthread_t {
 
 static inline void glthread_init(glthread_t *curr) {
   if (!curr) { return; }
-  curr->left = NULL;
-  curr->right = NULL;
+  curr->left = nullptr;
+  curr->right = nullptr;
 }
 
 static inline void glthread_add_next(glthread_t *curr, glthread_t *n) {

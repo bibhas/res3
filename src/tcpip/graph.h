@@ -7,11 +7,7 @@
 #include <iostream>
 #include "glthread.h"
 #include "net.h"
-
-#define IF_NAME_SIZE 16
-#define GRAPH_NAME_SIZE 32
-#define NODE_NAME_SIZE 16
-#define MAX_INTF_PER_NODE 10
+#include "config.h"
 
 // Forward declarations
 
@@ -25,7 +21,7 @@ typedef struct interface_t interface_t;
 // Interface
 
 struct interface_t {
-  char if_name[IF_NAME_SIZE];
+  char if_name[CONFIG_IF_NAME_SIZE];
   struct node_t *att_node;
   struct link_t *link;
   interface_netprop_t netprop;
@@ -57,8 +53,8 @@ bool link_get_other_interface(link_t *l, interface_t *intf, interface_t **otherp
 // Node
 
 struct node_t {
-  char node_name[NODE_NAME_SIZE];
-  interface_t *intf[MAX_INTF_PER_NODE];
+  char node_name[CONFIG_NODE_NAME_SIZE];
+  interface_t *intf[CONFIG_MAX_INTF_PER_NODE];
   glthread_t graph_glue;
   struct {
     uint32_t port;
@@ -85,7 +81,7 @@ DEFINE_GLTHREAD_TO_STRUCT_FUNC(
 // Graph
 
 struct graph_t {
-  char topology_name[GRAPH_NAME_SIZE];
+  char topology_name[CONFIG_GRAPH_NAME_SIZE];
   glthread_t node_list;
 };
 

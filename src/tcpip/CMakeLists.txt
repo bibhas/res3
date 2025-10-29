@@ -3,7 +3,8 @@ set(common_sources
   "graph.cpp"
   "utils.cpp"
   "comm.cpp"
-  #"layer2/layer2.cpp"
+  "layer2/layer2.cpp"
+  "layer2/arp.cpp"
 )
 
 utils_add_interface_library(tcpip_base
