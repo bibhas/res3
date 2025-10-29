@@ -3,6 +3,7 @@ set(common_sources
   "graph.cpp"
   "utils.cpp"
   "comm.cpp"
+  #"layer2/layer2.cpp"
 )
 
 utils_add_executable(tcpip
@@ -12,6 +13,7 @@ utils_add_executable(tcpip
   LINKS libcli
   CFLAGS "-DVERBOSE" "-mssse3"
   DEFINES "TARGETNAME=\"tcpip\""
+  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 utils_add_executable(nettest

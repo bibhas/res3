@@ -9,6 +9,7 @@
 #include "utils.h"
 #include "cli.h"
 #include "comm.h"
+#include "layer2/layer2.h"
 
 graph_t *build_first_topo() {
   graph_t *topo = graph_init("Hello World Generic Graph");
