@@ -8,6 +8,9 @@
 #include <cstdlib>
 #include <iostream>
 
+#define likely(x) __builtin_expect(!!(x), 1)
+#define unlikely(x) __builtin_expect(!!(x), 0)
+
 #define COPY_STRING_TO(DST, LITERAL, MAXLEN) \
   do { \
     int name_len = std::max((int)strlen((LITERAL)), MAXLEN); \
@@ -102,5 +105,8 @@ bool mac_addr_try_parse(const char *addrstr, mac_addr_t *out);
   (MAC).bytes[4] == 0xFF && \
   (MAC).bytes[5] == 0xFF \
 )
+
+#define MAC_ADDR_IS_EQUAL(MAC0, MAC1) \
+  ((MAC0).value == (MAC1).value)
 
 

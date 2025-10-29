@@ -4,10 +4,12 @@
 #include <cstdint>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include "layer2/layer2.h"
 #include "comm.h"
 
 #define MAX_PACKET_BUFFER_SIZE   2048
 static uint8_t __recv_buffer[MAX_PACKET_BUFFER_SIZE];
+static uint8_t __temp_buffer[MAX_PACKET_BUFFER_SIZE];
 static uint8_t __send_buffer[MAX_PACKET_BUFFER_SIZE];
 static std::atomic<bool> __receiver_thread_ready(false);
 
@@ -47,13 +49,11 @@ int comm_pkt_receive_bytes(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t 
   EXPECT_RETURN_BOOL(n != nullptr, "Empty node ptr param", false);
   EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface ptr param", false);
   EXPECT_RETURN_BOOL(pkt != nullptr, "Empty packet ptr param", false);
-  dump_line_indentation_guard_t guard;
-  dump_line("Message received!\n");
-  dump_line_indentation_add(1);
-  dump_line("Contents: %s\n", (const char *)pkt);
-  dump_line("Recipient Node: %s\n", (const char *)n->node_name);
-  dump_line("Recipient Interface: %s\n", (const char *)intf->if_name);
-  return -1; // Number of bytes sent
+  // TODO: Why exactly are we shifting the data since we distinguish between
+  // send and receive buffers, and as such, they are two different allocations?
+  bool resp = comm_pkt_buffer_shift_right(&pkt, pktlen, MAX_PACKET_BUFFER_SIZE - IF_NAME_SIZE);
+  EXPECT_RETURN_VAL(resp == true, "comm_pkt_buffer_shift_right failed", -1);
+  return layer2_frame_recv(n, intf, pkt, pktlen);
 }
 
 int comm_pkt_send_flood_bytes(node_t *n, interface_t *ign_intf, uint8_t *pkt, uint32_t pktlen) {
@@ -150,3 +150,21 @@ void comm_pkt_receiver_thread_main(graph_t *topo) {
 bool comm_pkt_receiver_thread_ready() {
   return __receiver_thread_ready.load();
 }
+
+bool comm_pkt_buffer_shift_right(uint8_t **pktptr, uint32_t pktlen, uint32_t buflen) {
+  EXPECT_RETURN_BOOL(pktptr != nullptr, "Empty pkt out param", false);
+  uint32_t offset = buflen - pktlen; // Make sure buffer is at least 2 x MTU
+  if (likely(pktlen * 2 < buflen)) {
+    memcpy(*pktptr + offset, *pktptr, pktlen);
+    memset(*pktptr, 0, offset);
+  }
+  else {
+    // Expensive
+    memcpy(__temp_buffer, *pktptr, pktlen);
+    memset(*pktptr, 0, offset);
+    memcpy(*pktptr + offset, __temp_buffer, pktlen);
+  }
+  *pktptr += offset;
+  return true; 
+}
+

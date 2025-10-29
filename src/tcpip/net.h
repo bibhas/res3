@@ -58,3 +58,4 @@ void interface_dump_netprop(interface_t *i);
 // Graph properties
 
 void graph_dump_netprop(graph_t *g);
+

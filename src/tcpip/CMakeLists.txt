@@ -6,18 +6,27 @@ set(common_sources
   #"layer2/layer2.cpp"
 )
 
-utils_add_executable(tcpip
+utils_add_interface_library(tcpip_base
+  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}
   SOURCES ${common_sources} 
-          "tcpip.cpp" 
+  CFLAGS "-DVERBOSE" "-mssse3"
+)
+
+utils_add_executable(tcpip
+  EXTENDS tcpip_base
+  SOURCES "tcpip.cpp" 
           "cli.cpp"
   LINKS libcli
-  CFLAGS "-DVERBOSE" "-mssse3"
-  DEFINES "TARGETNAME=\"tcpip\""
-  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 utils_add_executable(nettest
-  SOURCES "nettest.cpp" ${common_sources} 
+  EXTENDS tcpip_base
+  SOURCES "nettest.cpp"
+)
+
+utils_add_executable(layer2test
+  EXTENDS tcpip_base
+  SOURCES "layer2/layer2test.cpp"
 )
 
 

@@ -14,3 +14,4 @@ bool comm_udp_socket_setup(uint32_t *port, int *fd);
 void comm_pkt_receiver_thread_main(graph_t *topo);
 bool comm_pkt_receiver_thread_ready(); // Thread safe
 
+bool comm_pkt_buffer_shift_right(uint8_t **pktptr, uint32_t pktlen, uint32_t buflen);
