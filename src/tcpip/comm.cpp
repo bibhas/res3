@@ -46,7 +46,7 @@ int comm_node_receive_interface_pkt_bytes(node_t *n, interface_t *intf, uint8_t 
   // send and receive buffers, and as such, they are two different allocations?
   bool resp = comm_pkt_buffer_shift_right(&pkt, pktlen, CONFIG_MAX_PACKET_BUFFER_SIZE - CONFIG_IF_NAME_SIZE);
   EXPECT_RETURN_VAL(resp == true, "comm_pkt_buffer_shift_right failed", -1);
-  return layer2_frame_recv(n, intf, pkt, pktlen);
+  return layer2_frame_recv_pkt_bytes(n, intf, pkt, pktlen);
 }
 
 #pragma mark -
@@ -136,10 +136,6 @@ bool comm_setup_udp_socket(uint32_t *port, int *fd) {
 int comm_interface_send_pkt_bytes(interface_t *intf, uint8_t *pkt, uint32_t pktlen) {
   EXPECT_RETURN_BOOL(pkt != nullptr, "Empty packet ptr param", false);
   EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface ptr param", false);
-  // Gather nodes
-  node_t *n = intf->att_node;
-  node_t *nbr = interface_get_neighbor_node(intf);
-  EXPECT_RETURN_VAL(nbr != nullptr, "interface_get_neighbor_node failed", -1);
   // Create socket
   int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
   EXPECT_RETURN_VAL(fd >= 0, "socket failed", -1);
@@ -147,6 +143,7 @@ int comm_interface_send_pkt_bytes(interface_t *intf, uint8_t *pkt, uint32_t pktl
   interface_t *intf2 = nullptr;
   bool found = link_get_other_interface(intf->link, intf, &intf2);
   EXPECT_RETURN_VAL(found == true, "link_get_other_interface failed", -1);
+  node_t *nbr = intf2->att_node;
   memset(__send_buffer, 0, CONFIG_MAX_PACKET_BUFFER_SIZE);
   // Append null terminated dest interface name
   strncpy((char *)__send_buffer, intf2->if_name, CONFIG_IF_NAME_SIZE);

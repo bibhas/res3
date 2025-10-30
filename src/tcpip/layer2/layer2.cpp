@@ -33,7 +33,7 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
   return false;
 }
 
-int layer2_frame_recv(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t pktlen) {
+int layer2_frame_recv_pkt_bytes(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t pktlen) {
   // Entry point into our TCP/IP stack
   // TODO
   return 0;

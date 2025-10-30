@@ -31,4 +31,4 @@ ether_hdr_t* ether_hdr_alloc_with_payload(uint8_t *pkt, uint32_t pktlen);
 // Layer 2 processing
 
 bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethhdr);
-int layer2_frame_recv(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t pktlen);
+int layer2_frame_recv_pkt_bytes(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t pktlen);
