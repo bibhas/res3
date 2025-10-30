@@ -4,18 +4,22 @@
 
 #include <cstdint>
 #include "utils.h"
+#include "layer2/arp.h"
 
 // Forward declarations
 
 typedef struct node_t node_t;
 typedef struct interface_t interface_t;
 typedef struct graph_t graph_t;
+typedef struct arp_table_t arp_table_t;
 
 #pragma mark -
 
 // Node Network Properties
 
 struct node_netprop_t {
+  // L2 properties
+  arp_table_t *arp_table = nullptr;
   // L3 properties 
   struct {
     bool configured;

@@ -12,6 +12,7 @@ void node_netprop_init(node_netprop_t *prop) {
   EXPECT_RETURN(prop != nullptr, "Empty prop");
   prop->loopback.configured = false;
   prop->loopback.addr.value = 0;
+  arp_table_init(&prop->arp_table);
 }
 
 bool node_set_loopback_address(node_t *n, const char *addrstr) {

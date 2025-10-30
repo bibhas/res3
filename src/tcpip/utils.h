@@ -11,6 +11,8 @@
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
+#define __PACK__ __attribute__((packed))
+
 #define COPY_STRING_TO(DST, LITERAL, MAXLEN) \
   do { \
     int name_len = std::max((int)strlen((LITERAL)), MAXLEN); \
@@ -54,7 +56,7 @@ struct dump_line_indentation_guard_t {
 
 // IPv4 Address
 
-struct __attribute__((packed)) ipv4_addr_t {
+struct __PACK__ ipv4_addr_t {
   union {
     uint32_t value;
     uint8_t bytes[4];
@@ -71,6 +73,9 @@ typedef struct ipv4_addr_t ipv4_addr_t;
 #define IPV4_ADDR_BYTES_BE(IP) \
   (IP).bytes[0], (IP).bytes[1], (IP).bytes[2], (IP).bytes[3]
 
+#define IPV4_ADDR_PTR_IS_EQUAL(IP0, IP1) \
+  ((IP0)->value == (IP1)->value)
+
 bool ipv4_addr_try_parse(const char *addrstr, ipv4_addr_t *out);
 bool ipv4_addr_apply_mask(ipv4_addr_t *prefix, uint8_t mask, ipv4_addr_t *out);
 bool ipv4_addr_render(ipv4_addr_t *addr, char *out);
@@ -79,7 +84,7 @@ bool ipv4_addr_render(ipv4_addr_t *addr, char *out);
 
 // MAC Address
 
-struct __attribute__((packed)) mac_addr_t {
+struct __PACK__ mac_addr_t {
   union {
     uint64_t value:48;
     uint8_t bytes[6];

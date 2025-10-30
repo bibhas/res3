@@ -8,44 +8,37 @@
 #include "comm.h"
 #include "config.h"
 
+#pragma mark -
+
+// Private static variables
+
 static uint8_t __recv_buffer[CONFIG_MAX_PACKET_BUFFER_SIZE];
 static uint8_t __temp_buffer[CONFIG_MAX_PACKET_BUFFER_SIZE];
 static uint8_t __send_buffer[CONFIG_MAX_PACKET_BUFFER_SIZE];
 static std::atomic<bool> __receiver_thread_ready(false);
 
-int comm_pkt_send_bytes(uint8_t *pkt, uint32_t pktlen, interface_t *intf) {
-  EXPECT_RETURN_BOOL(pkt != nullptr, "Empty packet ptr param", false);
-  EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface ptr param", false);
-  // Gather nodes
-  node_t *n = intf->att_node;
-  node_t *nbr = interface_get_neighbor_node(intf);
-  EXPECT_RETURN_VAL(nbr != nullptr, "interface_get_neighbor_node failed", -1);
-  // Create socket
-  int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-  EXPECT_RETURN_VAL(fd >= 0, "socket failed", -1);
-  // Begin preparing data payload (including aux info)
-  interface_t *intf2 = nullptr;
-  bool found = link_get_other_interface(intf->link, intf, &intf2);
-  EXPECT_RETURN_VAL(found == true, "link_get_other_interface failed", -1);
-  memset(__send_buffer, 0, CONFIG_MAX_PACKET_BUFFER_SIZE);
-  // Append null terminated dest interface name
-  strncpy((char *)__send_buffer, intf2->if_name, CONFIG_IF_NAME_SIZE);
-  __send_buffer[CONFIG_IF_NAME_SIZE] = '\0';
-  // Append rest of the data
-  memcpy((void *)(__send_buffer + CONFIG_IF_NAME_SIZE), (void *)pkt, pktlen);
-  // Finally, send packet
-  struct sockaddr_in addr;
-  addr.sin_family = AF_INET;
-  addr.sin_port = htons(nbr->udp.port);
-  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  int resp = sendto(fd, __send_buffer, pktlen + CONFIG_IF_NAME_SIZE, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr));
-  EXPECT_RETURN_VAL(resp >= 0, "sendto failed", -1);
-  // Cleanup
-  close(fd);
-  return resp; // Number of bytes sent
+#pragma mark -
+
+// Private utility functions
+
+bool comm_pkt_buffer_shift_right(uint8_t **pktptr, uint32_t pktlen, uint32_t buflen) {
+  EXPECT_RETURN_BOOL(pktptr != nullptr, "Empty pkt out param", false);
+  uint32_t offset = buflen - pktlen; // Make sure buffer is at least 2 x MTU
+  if (likely(pktlen * 2 < buflen)) {
+    memcpy(*pktptr + offset, *pktptr, pktlen);
+    memset(*pktptr, 0, offset);
+  }
+  else {
+    // Expensive
+    memcpy(__temp_buffer, *pktptr, pktlen);
+    memset(*pktptr, 0, offset);
+    memcpy(*pktptr + offset, __temp_buffer, pktlen);
+  }
+  *pktptr += offset;
+  return true; 
 }
 
-int comm_pkt_receive_bytes(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t pktlen) {
+int comm_node_receive_interface_pkt_bytes(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t pktlen) {
   EXPECT_RETURN_BOOL(n != nullptr, "Empty node ptr param", false);
   EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface ptr param", false);
   EXPECT_RETURN_BOOL(pkt != nullptr, "Empty packet ptr param", false);
@@ -56,54 +49,9 @@ int comm_pkt_receive_bytes(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t 
   return layer2_frame_recv(n, intf, pkt, pktlen);
 }
 
-int comm_pkt_send_flood_bytes(node_t *n, interface_t *ign_intf, uint8_t *pkt, uint32_t pktlen) {
-  EXPECT_RETURN_VAL(n != nullptr, "Empty node ptr param", -1);
-  EXPECT_RETURN_VAL(pkt != nullptr, "Empty packet ptr param", -1);
-  int acc = 0;
-  for (int i = 0; i < CONFIG_MAX_INTF_PER_NODE; i++) {
-    if (!n->intf[i]) { continue; }
-    interface_t *candidate = n->intf[i];
-    if (candidate == ign_intf) { continue; } // ignored interface
-    int resp = comm_pkt_send_bytes(pkt, pktlen, candidate); 
-    EXPECT_CONTINUE(resp == pktlen, "comp_pkt_send_bytes failed");
-    acc += resp;
-  }
-  return acc; // Number of bytes sent
-}
+#pragma mark -
 
-bool comm_udp_socket_setup(uint32_t *port, int *fd) {
-  EXPECT_RETURN_BOOL(port != nullptr, "Empty port ptr param", false);
-  EXPECT_RETURN_BOOL(fd != nullptr, "Empty socket fd ptr param", false);
-  // Create a socket
-  int resp = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-  EXPECT_RETURN_BOOL(resp != -1, "socket failed", false);
-  *fd = resp;
-  struct sockaddr_in addr;
-  addr.sin_family = AF_INET;
-  addr.sin_port = htons(*port);
-  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  // Bind address to socket
-  resp = bind(*fd, (struct sockaddr *)&addr, sizeof(struct sockaddr));
-  if (resp < 0) {
-    if (errno == EADDRINUSE) {
-      // Try again  
-      addr.sin_port = 0; // port is auto assigned
-      // Bind address to socket
-      resp = bind(*fd, (struct sockaddr *)&addr, sizeof(struct sockaddr));
-      EXPECT_RETURN_BOOL(resp == 0, "bind (retry) failed", false);
-    }
-    else {
-      printf("error: %s\n", strerror(errno));
-      ERR_RETURN_BOOL("bind failed", false);
-    }
-  }
-  // Find assigned port
-  socklen_t addrlen = sizeof(addr);
-  getsockname(*fd, (struct sockaddr *) &addr, &addrlen);
-  EXPECT_RETURN_BOOL(addrlen == sizeof(addr), "getsockname (addrlen) failed", false);
-  *port = ntohs(addr.sin_port);
-  return true;
-}
+// Public functions
 
 void comm_pkt_receiver_thread_main(graph_t *topo) {
   // First, gather all node socket descriptors
@@ -139,7 +87,7 @@ void comm_pkt_receiver_thread_main(graph_t *topo) {
         char *target_intf_name = (char *)__recv_buffer; // of size IF_NAME_SIZE
         interface_t *target_intf = node_get_interface_by_name(n, target_intf_name);
         EXPECT_CONTINUE(target_intf != nullptr, "Packet received on unknown interface");
-        resp = comm_pkt_receive_bytes(n, target_intf, __recv_buffer + CONFIG_IF_NAME_SIZE, bytes - CONFIG_IF_NAME_SIZE);
+        resp = comm_node_receive_interface_pkt_bytes(n, target_intf, __recv_buffer + CONFIG_IF_NAME_SIZE, bytes - CONFIG_IF_NAME_SIZE);
         // TODO: What to do with resp??
       }
     }
@@ -151,20 +99,84 @@ bool comm_pkt_receiver_thread_ready() {
   return __receiver_thread_ready.load();
 }
 
-bool comm_pkt_buffer_shift_right(uint8_t **pktptr, uint32_t pktlen, uint32_t buflen) {
-  EXPECT_RETURN_BOOL(pktptr != nullptr, "Empty pkt out param", false);
-  uint32_t offset = buflen - pktlen; // Make sure buffer is at least 2 x MTU
-  if (likely(pktlen * 2 < buflen)) {
-    memcpy(*pktptr + offset, *pktptr, pktlen);
-    memset(*pktptr, 0, offset);
+bool comm_setup_udp_socket(uint32_t *port, int *fd) {
+  EXPECT_RETURN_BOOL(port != nullptr, "Empty port ptr param", false);
+  EXPECT_RETURN_BOOL(fd != nullptr, "Empty socket fd ptr param", false);
+  // Create a socket
+  int resp = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  EXPECT_RETURN_BOOL(resp != -1, "socket failed", false);
+  *fd = resp;
+  struct sockaddr_in addr;
+  addr.sin_family = AF_INET;
+  addr.sin_port = htons(*port);
+  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  // Bind address to socket
+  resp = bind(*fd, (struct sockaddr *)&addr, sizeof(struct sockaddr));
+  if (resp < 0) {
+    if (errno == EADDRINUSE) {
+      // Try again  
+      addr.sin_port = 0; // port is auto assigned
+      // Bind address to socket
+      resp = bind(*fd, (struct sockaddr *)&addr, sizeof(struct sockaddr));
+      EXPECT_RETURN_BOOL(resp == 0, "bind (retry) failed", false);
+    }
+    else {
+      printf("error: %s\n", strerror(errno));
+      ERR_RETURN_BOOL("bind failed", false);
+    }
   }
-  else {
-    // Expensive
-    memcpy(__temp_buffer, *pktptr, pktlen);
-    memset(*pktptr, 0, offset);
-    memcpy(*pktptr + offset, __temp_buffer, pktlen);
+  // Find assigned port
+  socklen_t addrlen = sizeof(addr);
+  getsockname(*fd, (struct sockaddr *) &addr, &addrlen);
+  EXPECT_RETURN_BOOL(addrlen == sizeof(addr), "getsockname (addrlen) failed", false);
+  *port = ntohs(addr.sin_port);
+  return true;
+}
+
+int comm_interface_send_pkt_bytes(interface_t *intf, uint8_t *pkt, uint32_t pktlen) {
+  EXPECT_RETURN_BOOL(pkt != nullptr, "Empty packet ptr param", false);
+  EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface ptr param", false);
+  // Gather nodes
+  node_t *n = intf->att_node;
+  node_t *nbr = interface_get_neighbor_node(intf);
+  EXPECT_RETURN_VAL(nbr != nullptr, "interface_get_neighbor_node failed", -1);
+  // Create socket
+  int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  EXPECT_RETURN_VAL(fd >= 0, "socket failed", -1);
+  // Begin preparing data payload (including aux info)
+  interface_t *intf2 = nullptr;
+  bool found = link_get_other_interface(intf->link, intf, &intf2);
+  EXPECT_RETURN_VAL(found == true, "link_get_other_interface failed", -1);
+  memset(__send_buffer, 0, CONFIG_MAX_PACKET_BUFFER_SIZE);
+  // Append null terminated dest interface name
+  strncpy((char *)__send_buffer, intf2->if_name, CONFIG_IF_NAME_SIZE);
+  __send_buffer[CONFIG_IF_NAME_SIZE] = '\0';
+  // Append rest of the data
+  memcpy((void *)(__send_buffer + CONFIG_IF_NAME_SIZE), (void *)pkt, pktlen);
+  // Finally, send packet
+  struct sockaddr_in addr;
+  addr.sin_family = AF_INET;
+  addr.sin_port = htons(nbr->udp.port);
+  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  int resp = sendto(fd, __send_buffer, pktlen + CONFIG_IF_NAME_SIZE, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr));
+  EXPECT_RETURN_VAL(resp >= 0, "sendto failed", -1);
+  // Cleanup
+  close(fd);
+  return resp; // Number of bytes sent
+}
+
+int comm_node_flood_pkt_bytes(node_t *n, interface_t *ign_intf, uint8_t *pkt, uint32_t pktlen) {
+  EXPECT_RETURN_VAL(n != nullptr, "Empty node ptr param", -1);
+  EXPECT_RETURN_VAL(pkt != nullptr, "Empty packet ptr param", -1);
+  int acc = 0;
+  for (int i = 0; i < CONFIG_MAX_INTF_PER_NODE; i++) {
+    if (!n->intf[i]) { continue; }
+    interface_t *intf = n->intf[i];
+    if (intf == ign_intf) { continue; } // ignored interface
+    int resp = comm_interface_send_pkt_bytes(intf, pkt, pktlen); 
+    EXPECT_CONTINUE(resp == pktlen, "comp_pkt_send_bytes failed");
+    acc += resp;
   }
-  *pktptr += offset;
-  return true; 
+  return acc; // Number of bytes sent
 }
 

@@ -198,7 +198,7 @@ node_t *graph_add_node(graph_t *graph, const char *node_name) {
   // Initialize network properties
   node_netprop_init(&resp->netprop);
   // Start udp socket
-  bool status = comm_udp_socket_setup(&resp->udp.port, &resp->udp.fd);
+  bool status = comm_setup_udp_socket(&resp->udp.port, &resp->udp.fd);
   EXPECT_RETURN_VAL(status == true, "node_setup_udp_socket failed", nullptr);
   return resp;
 }

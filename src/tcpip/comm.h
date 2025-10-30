@@ -6,12 +6,22 @@
 #include <cstdint>
 #include "graph.h"
 
-int comm_pkt_send_bytes(uint8_t *pkt, uint32_t pktlen, interface_t *intf);
-int comm_pkt_receive_bytes(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t pktlen);
-int comm_pkt_send_flood_bytes(node_t *n, interface_t *ign_intf, uint8_t *pkt, uint32_t pktlen);
+#pragma mark -
 
-bool comm_udp_socket_setup(uint32_t *port, int *fd);
+// General
+
+/*
+ * Upon receiving a packet, the thread will pass on the parsed packet to
+ * `layer2_frame_recv()` function. See `layer2/layer2.cpp`
+ */
 void comm_pkt_receiver_thread_main(graph_t *topo);
 bool comm_pkt_receiver_thread_ready(); // Thread safe
+bool comm_setup_udp_socket(uint32_t *port, int *fd);
 
-bool comm_pkt_buffer_shift_right(uint8_t **pktptr, uint32_t pktlen, uint32_t buflen);
+#pragma mark -
+
+// Packet I/O
+
+int comm_interface_send_pkt_bytes(interface_t *intf, uint8_t *pkt, uint32_t pktlen);
+int comm_node_flood_pkt_bytes(node_t *n, interface_t *ign_intf, uint8_t *pkt, uint32_t pktlen);
+
