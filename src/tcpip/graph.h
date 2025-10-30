@@ -55,24 +55,23 @@ bool link_get_other_interface(link_t *l, interface_t *intf, interface_t **otherp
 struct node_t {
   char node_name[CONFIG_NODE_NAME_SIZE];
   interface_t *intf[CONFIG_MAX_INTF_PER_NODE];
-  glthread_t graph_glue;
+  node_netprop_t netprop;
   struct {
     uint32_t port;
     int fd;
   } udp;
-  node_netprop_t netprop;
+  glthread_t graph_glue;
 };
 
-int node_get_usable_interface_index(node_t *node);
-interface_t* node_get_interface_by_name(node_t *node, const char *if_name);
-void node_dump(node_t *node);
-
-// Uses __builtin_offsetof to get node_t* from glthread_t *
 DEFINE_GLTHREAD_TO_STRUCT_FUNC(
   node_ptr_from_graph_glue,   // fn name
   node_t,                     // return type
   graph_glue                  // glthread_t* field in node_t
 );
+
+int node_get_usable_interface_index(node_t *node);
+interface_t* node_get_interface_by_name(node_t *node, const char *if_name);
+void node_dump(node_t *node);
 
 #define NODE_LO_ADDR(NODEPTR) &((NODEPTR)->netprop.loopback.addr)
 

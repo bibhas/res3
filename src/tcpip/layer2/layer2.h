@@ -4,6 +4,7 @@
 
 #include "net.h"
 #include "graph.h"
+#include "utils.h"
 
 #pragma mark -
 
@@ -11,7 +12,7 @@
 
 #define ETHER_TYPE_ARP 0x0806
 
-struct __attribute__((packed)) ether_hdr_t {
+struct __PACK__ ether_hdr_t {
   mac_addr_t src_mac;
   mac_addr_t dst_mac;
   uint16_t type;

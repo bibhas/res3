@@ -21,7 +21,7 @@ bool arp_table_lookup(arp_table_t *t, ipv4_addr_t *ip_addr, arp_entry_t **out) {
   EXPECT_RETURN_BOOL(out != nullptr, "Empty out ptr param", false);
   glthread_t *curr = nullptr;
   GLTHREAD_FOREACH_BEGIN(&t->arp_entries, curr) {
-    arp_entry_t *e = arp_entry_ptr_from_arp_glue(curr);
+    arp_entry_t *e = arp_entry_ptr_from_arp_table_glue(curr);
     if (IPV4_ADDR_PTR_IS_EQUAL(&e->ip_addr, ip_addr)) {
       *out = e;
       return true;
