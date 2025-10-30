@@ -32,31 +32,83 @@ bool arp_table_lookup(arp_table_t *t, ipv4_addr_t *ip_addr, arp_entry_t **out) {
   return false;
 }
 
+#define ARP_TABLE_OWN_ENTRIES 1
+
 bool arp_table_add_entry(arp_table_t *t, arp_entry_t *entry) {
   EXPECT_RETURN_BOOL(t != nullptr, "Empty table param", false);
   EXPECT_RETURN_BOOL(entry != nullptr, "Empty entry param", false);
-  return false;
+  arp_entry_t *__entry = nullptr;
+  if (arp_table_lookup(t, &entry->ip_addr, &__entry)) {
+    // Already exists
+    return false;
+  }
+  auto buffer = (arp_entry_t *)malloc(sizeof(arp_entry_t));
+  memcpy((void *)buffer, (void *)entry, sizeof(arp_entry_t));
+  glthread_add_next(&t->arp_entries, &buffer->arp_table_glue);
+  return true;
 }
 
 bool arp_table_delete_entry(arp_table_t *t, ipv4_addr_t *ip_addr) {
   EXPECT_RETURN_BOOL(t != nullptr, "Empty table param", false);
   EXPECT_RETURN_BOOL(ip_addr != nullptr, "Empty ip address param", false);
-  return false;
+  glthread_t *curr = nullptr;
+  GLTHREAD_FOREACH_BEGIN(&t->arp_entries, curr) {
+    arp_entry_t *entry = arp_entry_ptr_from_arp_table_glue(curr);
+    if (!IPV4_ADDR_PTR_IS_EQUAL(&entry->ip_addr, ip_addr)) {
+      continue;
+    }
+    // This is ok to do since curr is never the head of the thread (the
+    // glthread_t instance held by the owner).
+    bool resp = glthread_remove(curr);
+    EXPECT_RETURN_BOOL(resp == true, "glthread_remove failed", false);
+    free(entry);
+    return true;
+  }
+  GLTHREAD_FOREACH_END();
+  return false; // Didn't find entry
 }
 
 bool arp_table_clear(arp_table_t *t) {
   EXPECT_RETURN_BOOL(t != nullptr, "Empty table param", false);
-  return false;
+  glthread_t *curr = nullptr;
+  GLTHREAD_FOREACH_BEGIN(&t->arp_entries, curr) {
+    arp_entry_t *entry = arp_entry_ptr_from_arp_table_glue(curr); 
+    // This is ok to do since curr is never the head of the thread (the
+    // glthread_t instance held by the owner).
+    bool resp = glthread_remove(curr);
+    EXPECT_RETURN_BOOL(resp == true, "glthread_remove failed", false);
+    free(entry);
+  }
+  GLTHREAD_FOREACH_END();
+  return true; // All entries deleted
 }
 
 void arp_table_dump(arp_table_t *t) {
   EXPECT_RETURN(t != nullptr, "Empty table param");
-  
+  glthread_t *curr = nullptr;
+  GLTHREAD_FOREACH_BEGIN(&t->arp_entries, curr) {
+    arp_entry_t *entry = arp_entry_ptr_from_arp_table_glue(curr); 
+    dump_line(
+      "IP: " IPV4_ADDR_FMT ", MAC: " MAC_ADDR_FMT ", OIF: %s\n",
+      IPV4_ADDR_BYTES_BE(entry->ip_addr), MAC_ADDR_BYTES_BE(entry->mac_addr),
+      entry->oif_name
+    );
+  }
+  GLTHREAD_FOREACH_END();
 }
 
 bool arp_table_process_reply(arp_table_t *t, arp_hdr_t *hdr, interface_t *intf) {
   EXPECT_RETURN_BOOL(t != nullptr, "Empty table param", false);
   EXPECT_RETURN_BOOL(hdr != nullptr, "Empty header param", false);
   EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface param", false);
-  return false;
+  // Fill out entry fields
+  arp_entry_t entry = {0};
+  entry.ip_addr = {.value = hdr->src_ip};    // network byte order
+  entry.mac_addr = {.bytes = {BYTES_FROM_BYTEARRAY_BE(hdr->src_mac)}};
+  strncpy((char *)entry.oif_name, (char *)intf->if_name, CONFIG_IF_NAME_SIZE);
+  glthread_init(&entry.arp_table_glue);
+  // Add entry to thread (function will memcpy entry fields)
+  bool resp = arp_table_add_entry(t, &entry);
+  EXPECT_RETURN_BOOL(resp == true, "arp_table_add_entry failed", false);
+  return true;
 }

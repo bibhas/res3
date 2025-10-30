@@ -46,7 +46,7 @@ int comm_node_receive_interface_pkt_bytes(node_t *n, interface_t *intf, uint8_t 
   // send and receive buffers, and as such, they are two different allocations?
   bool resp = comm_pkt_buffer_shift_right(&pkt, pktlen, CONFIG_MAX_PACKET_BUFFER_SIZE - CONFIG_IF_NAME_SIZE);
   EXPECT_RETURN_VAL(resp == true, "comm_pkt_buffer_shift_right failed", -1);
-  return layer2_frame_recv_pkt_bytes(n, intf, pkt, pktlen);
+  return layer2_frame_recv_pkt_bytes(n, intf, pkt, pktlen); // Entry point into Layer 2
 }
 
 #pragma mark -
@@ -88,7 +88,7 @@ void comm_pkt_receiver_thread_main(graph_t *topo) {
         interface_t *target_intf = node_get_interface_by_name(n, target_intf_name);
         EXPECT_CONTINUE(target_intf != nullptr, "Packet received on unknown interface");
         resp = comm_node_receive_interface_pkt_bytes(n, target_intf, __recv_buffer + CONFIG_IF_NAME_SIZE, bytes - CONFIG_IF_NAME_SIZE);
-        // TODO: What to do with resp??
+#pragma unused(resp); // TODO: Fixme
       }
     }
     GLTHREAD_FOREACH_END();

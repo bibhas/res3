@@ -10,7 +10,6 @@
 
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
-
 #define __PACK__ __attribute__((packed))
 
 #define COPY_STRING_TO(DST, LITERAL, MAXLEN) \
@@ -20,6 +19,9 @@
     *((DST) + name_len - 1) = '\0'; \
   } \
   while (false) 
+
+#define BYTES_FROM_BYTEARRAY_BE(ARR) \
+  (ARR)[0], (ARR)[1], (ARR)[2], (ARR)[3], (ARR)[4], (ARR)[5]
 
 #pragma mark -
 
@@ -72,6 +74,9 @@ typedef struct ipv4_addr_t ipv4_addr_t;
 
 #define IPV4_ADDR_BYTES_BE(IP) \
   (IP).bytes[0], (IP).bytes[1], (IP).bytes[2], (IP).bytes[3]
+
+#define IPV4_ADDR_IS_EQUAL(IP0, IP1) \
+  ((IP0).value == (IP1).value)
 
 #define IPV4_ADDR_PTR_IS_EQUAL(IP0, IP1) \
   ((IP0)->value == (IP1)->value)

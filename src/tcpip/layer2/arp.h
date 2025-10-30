@@ -20,9 +20,9 @@ struct __PACK__ arp_hdr_t {
   uint8_t hw_addr_len;    // 6 = sizeof(mac_addr_t)
   uint8_t proto_addr_len; // 4 = sizeof(ipv4_addr_t)
   uint16_t op_code;       // 1 = request, 2 = reply
-  mac_addr_t src_mac;     
+  uint8_t src_mac[6];     
   uint32_t src_ip;
-  mac_addr_t dst_mac;     
+  uint8_t dst_mac[6];     
   uint32_t dst_ip;        // Used only for request
 };
 
