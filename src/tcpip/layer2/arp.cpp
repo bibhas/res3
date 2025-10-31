@@ -20,7 +20,7 @@ bool arp_send_broadcast_request(node_t *n, interface_t *ointf, ipv4_addr_t *ip_a
 
 void arp_table_init(arp_table_t **t) {
   EXPECT_RETURN(t != nullptr, "Empty table ptr param");
-  auto resp = (arp_table_t *)malloc(sizeof(arp_table_t));
+  auto resp = (arp_table_t *)calloc(1, sizeof(arp_table_t));
   glthread_init(&resp->arp_entries);
   *t = resp;
 }
@@ -52,7 +52,7 @@ bool arp_table_add_entry(arp_table_t *t, arp_entry_t *entry) {
       return false;
     }
   }
-  auto owned_entry = (arp_entry_t *)malloc(sizeof(arp_entry_t));
+  auto owned_entry = (arp_entry_t *)calloc(1, sizeof(arp_entry_t));
   memcpy((void *)owned_entry, (void *)entry, sizeof(arp_entry_t));
   glthread_init(&owned_entry->arp_table_glue);
   glthread_add_next(&t->arp_entries, &owned_entry->arp_table_glue);

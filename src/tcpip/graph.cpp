@@ -54,7 +54,7 @@ void link_nodes(node_t *n1, node_t *n2, const char *name1, const char *name2, ui
   // Sanity check
   if (!n1 || !n2 || !name1 || !name2) { return; }
   // Allocate link
-  link_t *new_link = (link_t *)malloc(sizeof(link_t));
+  link_t *new_link = (link_t *)calloc(1, sizeof(link_t));
   // Setup interface 1
   COPY_STRING_TO(new_link->intf1.if_name, name1, CONFIG_IF_NAME_SIZE);
   new_link->intf1.link = new_link;
@@ -162,7 +162,7 @@ void node_dump(node_t *node) {
 graph_t* graph_init(const char *topology_name) {
   if (!topology_name) { return NULL; } // Should we give it a sane default?
   // Allocate memory
-  graph_t *resp = (graph_t *)malloc(sizeof(graph_t));
+  graph_t *resp = (graph_t *)calloc(1, sizeof(graph_t));
   // Set name
   COPY_STRING_TO(resp->topology_name, topology_name, CONFIG_GRAPH_NAME_SIZE);
   // Initialize node_list
@@ -189,7 +189,7 @@ void graph_dump(graph_t *graph) {
 node_t *graph_add_node(graph_t *graph, const char *node_name) {
   if (!node_name) { return NULL; }
   // Allocate node
-  node_t *resp = (node_t *)malloc(sizeof(node_t));
+  node_t *resp = (node_t *)calloc(1, sizeof(node_t));
   // Set name
   COPY_STRING_TO(resp->node_name, node_name, CONFIG_NODE_NAME_SIZE);
   // Initialize thread
