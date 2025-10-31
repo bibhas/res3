@@ -27,7 +27,7 @@ struct __PACK__ arp_hdr_t {
   uint32_t dst_ip;        // Used only for request
 };
 
-void arp_send_broadcast_request(node_t *n, interface_t *ointf, char *ip_addr);
+bool arp_send_broadcast_request(node_t *n, interface_t *ointf, ipv4_addr_t *ip_addr);
 
 #pragma mark -
 

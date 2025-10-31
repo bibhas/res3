@@ -46,6 +46,9 @@ typedef struct tlv_struct{
 
 #define TLV_LOOP_END    }
 
+#define TLV_FOREACH_BEGIN(ser_buff, tlvptr) TLV_LOOP_BEGIN(ser_buff, tlvptr)
+#define TLV_FOREACH_END() TLV_LOOP_END
+
 #define tlv_copy_leaf_id(tlvptr, dst)                          \
     strncpy(dst, tlvptr->leaf_id, strlen(tlvptr->leaf_id));    \
     dst[strlen(tlvptr->leaf_id)] = '\0';

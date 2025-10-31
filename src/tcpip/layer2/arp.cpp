@@ -6,11 +6,12 @@
 
 #pragma mark -
 
-void arp_send_broadcast_request(node_t *n, interface_t *ointf, char *ip_addr) {
-  EXPECT_RETURN(n != nullptr, "Empty node param");
-  EXPECT_RETURN(ointf != nullptr, "Empty output interface param");
-  EXPECT_RETURN(ip_addr != nullptr, "Empty ip address param");
+bool arp_send_broadcast_request(node_t *n, interface_t *ointf, ipv4_addr_t *ip_addr) {
+  EXPECT_RETURN_BOOL(n != nullptr, "Empty node param", false);
+  EXPECT_RETURN_BOOL(ointf != nullptr, "Empty output interface param", false);
+  EXPECT_RETURN_BOOL(ip_addr != nullptr, "Empty ip address param", false);
   // ...
+  return false;
 }
 
 #pragma mark -

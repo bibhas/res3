@@ -33,7 +33,35 @@ int validate_ip_address(char *value) {
 int node_resolve_arp_callback(param_t *p, ser_buff_t *tlvs, op_mode mode) {
   int code = EXTRACT_CMD_CODE(tlvs);
   EXPECT_RETURN_VAL(code == CLI_CMD_CODE_RUN_NODE_RESOLVE_ARP, "Incorrect code", -1);
-  printf("TODO: Implement ARP resolver...\n");
+  // Parse out the node name and ip address
+  tlv_struct_t *tlv = nullptr;
+  char *node_name = nullptr; 
+  char *ip_addr_str = nullptr;
+  TLV_FOREACH_BEGIN(tlvs, tlv) {
+    if (strncmp(tlv->leaf_id, "node-name", strlen("node-name")) == 0) {
+      node_name = tlv->value;
+    }
+    else if (strncmp(tlv->leaf_id, "ip-address", strlen("ip-address")) == 0) {
+      ip_addr_str = tlv->value;
+    }
+  } 
+  TLV_FOREACH_END();
+  EXPECT_RETURN_VAL(node_name != nullptr, "Couldn't parse node name", -1);
+  EXPECT_RETURN_VAL(ip_addr_str != nullptr, "Couldn't parse ip address", -1);
+  // Parse ip address into ipv4_addr_t
+  ipv4_addr_t ip_addr;
+  bool resp = ipv4_addr_try_parse(ip_addr_str, &ip_addr);
+  EXPECT_RETURN_VAL(resp == true, "ipv4_addr_try_parse failed", -1);
+  // Find node
+  node_t *node = graph_find_node_by_name(__topology, node_name);
+  EXPECT_RETURN_VAL(node != nullptr, "graph_find_node_by_name failed", -1);
+  // Fine node interface that matches this subnet
+  interface_t *ointf = nullptr;
+  resp = node_get_interface_matching_subnet(node, &ip_addr, &ointf);
+  EXPECT_RETURN_VAL(resp == true, "node_get_interface_matching_subnet failed", -1);
+  // Perform ARP broadcast request
+  resp = arp_send_broadcast_request(node, ointf, &ip_addr);
+  EXPECT_RETURN_VAL(resp == true, "arp_send_broadcast_request failed", -1);
   return 0;
 }
 

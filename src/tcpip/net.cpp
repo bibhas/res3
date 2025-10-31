@@ -81,10 +81,13 @@ bool node_get_interface_matching_subnet(node_t *n, ipv4_addr_t *addr, interface_
     if (!n->intf[i]) { continue; }
     interface_t *intf = n->intf[i];
     if (!INTF_IS_L3_MODE(intf)) { continue; }
-    ipv4_addr_t subnet;
-    bool resp = ipv4_addr_apply_mask(INTF_IP(intf), *INTF_IP_SUBNET_MASK(intf), &subnet);
+    ipv4_addr_t prefix0;
+    bool resp = ipv4_addr_apply_mask(INTF_IP(intf), *INTF_IP_SUBNET_MASK(intf), &prefix0);
     EXPECT_RETURN_BOOL(resp == true, "ipv4_addr_apply_mask failed", false);
-    if (subnet.value == addr->value) {
+    ipv4_addr_t prefix1;
+    resp = ipv4_addr_apply_mask(addr, *INTF_IP_SUBNET_MASK(intf), &prefix1);
+    EXPECT_RETURN_BOOL(resp == true, "ipv4_addr_apply_mask failed", false);
+    if (prefix0.value == prefix1.value) {
       *out = intf;
       return true;
     }
