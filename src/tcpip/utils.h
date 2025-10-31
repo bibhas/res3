@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstring>
 #include <cstdlib>
+#include <atomic>
 #include <iostream>
 
 #define likely(x) __builtin_expect(!!(x), 1)
@@ -27,12 +28,34 @@
 
 // EXPECT assertions
 
-#define EXPECT_FATAL(COND, MSG) if (!(COND)) { printf("%s\n", MSG); exit(EXIT_FAILURE); }
-#define EXPECT_RETURN_BOOL(COND, MSG, RET) if (!(COND)) { printf("[ERR] %s\n", MSG); return RET; }
-#define EXPECT_RETURN_VAL(COND, MSG, RET) if (!(COND)) { printf("[ERR] %s\n", MSG); return RET; }
-#define EXPECT_RETURN(COND, MSG) if (!(COND)) { printf("[ERR] %s\n", MSG); return; }
-#define EXPECT_CONTINUE(COND, MSG) if (!(COND)) { printf("[ERR] %s\n", MSG); continue; }
-#define ERR_RETURN_BOOL(MSG, RET) printf("[ERR] %s\n", MSG); return RET;
+struct err_state_t {
+  std::atomic<bool> silent{false};
+  FILE *file{stderr};
+};
+
+extern err_state_t __err;
+
+struct err_logging_disable_guard_t {
+  bool cache;
+  err_logging_disable_guard_t() : cache(__err.silent.load()) {
+    __err.silent.store(true);
+  }
+  virtual ~err_logging_disable_guard_t() {
+    __err.silent.store(cache); // restore saved value
+  }
+};
+
+#define ENABLE_ERR_LOGGING() (__err.silent.store(false))
+#define DISABLE_ERR_LOGGING() (__err.silent.store(true))
+#define SET_ERR_STREAM(f) (__err.file = (f))
+#define LOG_ERR(...) do { if (!__err.silent.load()) fprintf(__err.file,"[ERR] " __VA_ARGS__); } while(0)
+
+#define EXPECT_FATAL(c,m) do { if(!(c)){LOG_ERR("%s\n",m);exit(EXIT_FAILURE);} } while(0)
+#define EXPECT_RETURN_BOOL(c,m,r) do { if(!(c)){LOG_ERR("%s\n",m);return(r);} } while(0)
+#define EXPECT_RETURN_VAL(c,m,r) EXPECT_RETURN_BOOL(c,m,r)
+#define EXPECT_RETURN(c,m) do { if(!(c)){LOG_ERR("%s\n",m);return;} } while(0)
+#define EXPECT_CONTINUE(c,m) do { if(!(c)){LOG_ERR("%s\n",m);continue;} } while(0)
+#define ERR_RETURN_BOOL(m,r) do { LOG_ERR("%s\n",m);return(r);} while(0)
 
 #pragma mark -
 

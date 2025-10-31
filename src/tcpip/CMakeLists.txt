@@ -14,6 +14,11 @@ utils_add_interface_library(tcpip_base
   CFLAGS "-DVERBOSE" "-mssse3"
 )
 
+utils_add_interface_library(tcpip_tests_base
+  EXTENDS tcpip_base
+  LINKS Catch2
+)
+
 utils_add_executable(tcpip
   EXTENDS tcpip_base
   SOURCES "tests/tcpip.cpp" 
@@ -26,8 +31,11 @@ utils_add_executable(nettest
   SOURCES "tests/nettest.cpp"
 )
 
-utils_add_executable(layer2test
-  EXTENDS tcpip_base
-  SOURCES "layer2/tests/layer2test.cpp"
+utils_add_executable(tests
+  EXTENDS tcpip_tests_base
+  LINKS Catch2
+  SOURCES "tests/tests_main.cpp"
+          "layer2/tests/arptests.cpp"
+          "layer2/tests/layer2tests.cpp"
 )
 

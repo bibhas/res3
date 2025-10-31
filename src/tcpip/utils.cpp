@@ -11,6 +11,8 @@
 bool __ipv4_addr_str_try_parse_host(const char *addrstr, uint32_t *out);
 bool __ipv4_addr_str_apply_mask(const char *prefix, uint8_t mask, uint32_t *out);
 
+err_state_t __err;
+
 #pragma mark -
 
 // Dump logging

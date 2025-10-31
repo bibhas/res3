@@ -23,6 +23,8 @@ static std::atomic<bool> __receiver_thread_ready(false);
 
 bool comm_pkt_buffer_shift_right(uint8_t **pktptr, uint32_t pktlen, uint32_t buflen) {
   EXPECT_RETURN_BOOL(pktptr != nullptr, "Empty pkt out param", false);
+  EXPECT_RETURN_BOOL(pktlen <= buflen, "Params pktlen greater than buflen", false);
+  EXPECT_RETURN_BOOL(pktlen != 0, "Zero pktlen param", false);
   uint32_t offset = buflen - pktlen; // Make sure buffer is at least 2 x MTU
   if (likely(pktlen * 2 < buflen)) {
     memcpy(*pktptr + offset, *pktptr, pktlen);
