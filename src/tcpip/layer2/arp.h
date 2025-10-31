@@ -6,6 +6,7 @@
 #include "utils.h"
 #include "config.h"
 
+typedef struct node_t node_t;
 typedef struct interface_t interface_t;
 
 #pragma mark -
@@ -25,6 +26,8 @@ struct __PACK__ arp_hdr_t {
   uint8_t dst_mac[6];     
   uint32_t dst_ip;        // Used only for request
 };
+
+void arp_send_broadcast_request(node_t *n, interface_t *ointf, char *ip_addr);
 
 #pragma mark -
 
@@ -65,4 +68,5 @@ bool arp_table_delete_entry(arp_table_t *t, ipv4_addr_t *ip_addr);
 bool arp_table_clear(arp_table_t *t);
 void arp_table_dump(arp_table_t *t);
 bool arp_table_process_reply(arp_table_t *t, arp_hdr_t *hdr, interface_t *intf);
+
 

@@ -6,6 +6,15 @@
 
 #pragma mark -
 
+void arp_send_broadcast_request(node_t *n, interface_t *ointf, char *ip_addr) {
+  EXPECT_RETURN(n != nullptr, "Empty node param");
+  EXPECT_RETURN(ointf != nullptr, "Empty output interface param");
+  EXPECT_RETURN(ip_addr != nullptr, "Empty ip address param");
+  // ...
+}
+
+#pragma mark -
+
 // ARP table
 
 void arp_table_init(arp_table_t **t) {
