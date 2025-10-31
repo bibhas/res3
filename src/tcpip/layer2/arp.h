@@ -50,6 +50,14 @@ DEFINE_GLTHREAD_TO_STRUCT_FUNC(
   arp_table_glue                        // glthread_t field in arp_entry_t
 );
 
+#define ARP_ENTRY_PTR_KEYS_ARE_EQUAL(ARP0, ARP1) \
+  ((ARP0)->ip_addr.value == (ARP1)->ip_addr.value) && \
+  (strncmp((char *)(ARP0)->oif_name, (char *)(ARP1)->oif_name, CONFIG_IF_NAME_SIZE) == 0)
+
+#define ARP_ENTRY_PTRS_ARE_EQUAL(ARP0, ARP1) \
+  ARP_ENTRY_PTR_KEYS_ARE_EQUAL(ARP0, ARP1) && \
+  ((ARP0)->mac_addr.value == (ARP1)->mac_addr.value)
+
 void arp_table_init(arp_table_t **t);
 bool arp_table_lookup(arp_table_t *t, ipv4_addr_t *ip_addr, arp_entry_t **out);
 bool arp_table_add_entry(arp_table_t *t, arp_entry_t *entry);

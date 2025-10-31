@@ -32,19 +32,20 @@ bool arp_table_lookup(arp_table_t *t, ipv4_addr_t *ip_addr, arp_entry_t **out) {
   return false;
 }
 
-#define ARP_TABLE_OWN_ENTRIES 1
-
 bool arp_table_add_entry(arp_table_t *t, arp_entry_t *entry) {
   EXPECT_RETURN_BOOL(t != nullptr, "Empty table param", false);
   EXPECT_RETURN_BOOL(entry != nullptr, "Empty entry param", false);
   arp_entry_t *__entry = nullptr;
   if (arp_table_lookup(t, &entry->ip_addr, &__entry)) {
-    // Already exists
-    return false;
+    if (ARP_ENTRY_PTR_KEYS_ARE_EQUAL(entry, __entry)) {
+      // Table already contains entry with the same (ip, intf) primary key
+      return false;
+    }
   }
-  auto buffer = (arp_entry_t *)malloc(sizeof(arp_entry_t));
-  memcpy((void *)buffer, (void *)entry, sizeof(arp_entry_t));
-  glthread_add_next(&t->arp_entries, &buffer->arp_table_glue);
+  auto owned_entry = (arp_entry_t *)malloc(sizeof(arp_entry_t));
+  memcpy((void *)owned_entry, (void *)entry, sizeof(arp_entry_t));
+  glthread_init(&owned_entry->arp_table_glue);
+  glthread_add_next(&t->arp_entries, &owned_entry->arp_table_glue);
   return true;
 }
 
