@@ -35,6 +35,7 @@ utils_add_executable(tests
   EXTENDS tcpip_tests_base
   LINKS Catch2
   SOURCES "tests/tests_main.cpp"
+          "tests/nettests.cpp"
           "layer2/tests/arptests.cpp"
           "layer2/tests/layer2tests.cpp"
 )
