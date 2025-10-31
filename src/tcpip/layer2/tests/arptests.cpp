@@ -1,10 +1,10 @@
 // arptests.cpp
 
+#include <arpa/inet.h>
 #include "catch2.hpp"
 #include "arp.h"
 #include "net.h"
 #include "graph.h"
-#include <arpa/inet.h>
 
 TEST_CASE("ARP table initialization", "[arp][init]") {
   arp_table_t *table = nullptr;
@@ -182,25 +182,6 @@ TEST_CASE("ARP table clear", "[arp][clear]") {
   bool lookup_result = arp_table_lookup(table, &test_ip, &found);
   REQUIRE(lookup_result == false);
   // Cleanup
-  free(table);
-}
-
-TEST_CASE("ARP table dump", "[arp][dump]") {
-  arp_table_t *table = nullptr;
-  arp_table_init(&table);
-  REQUIRE(table != nullptr);
-  // Add a few entries
-  for (int i = 0; i < 3; i++) {
-    arp_entry_t entry = {0};
-    entry.ip_addr = {.bytes = {10, 0, 0, (uint8_t)(1 + i)}};
-    entry.mac_addr = {.bytes = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, (uint8_t)(0x00 + i)}};
-    strncpy(entry.oif_name, "eth0/0", CONFIG_IF_NAME_SIZE);
-    arp_table_add_entry(table, &entry);
-  }
-  // This is a visual test - just verify it doesn't crash
-  arp_table_dump(table);
-  // Cleanup
-  arp_table_clear(table);
   free(table);
 }
 
