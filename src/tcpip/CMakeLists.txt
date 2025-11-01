@@ -3,6 +3,7 @@ set(common_sources
   "graph.cpp"
   "utils.cpp"
   "comm.cpp"
+  "topo.cpp"
   "layer2/layer2.cpp"
   "layer2/arp.cpp"
 )

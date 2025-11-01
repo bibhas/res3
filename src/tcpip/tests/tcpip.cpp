@@ -4,12 +4,9 @@
 #include <chrono>
 #include <iostream>
 #include <string.h>
-#include "glthread.h"
-#include "graph.h"
-#include "utils.h"
 #include "cli.h"
+#include "topo.h"
 #include "comm.h"
-#include "layer2/layer2.h"
 
 int main(int argc, const char **argv) {
   graph_t *topo = graph_create_three_node_ring_topology();
