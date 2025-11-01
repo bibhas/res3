@@ -11,6 +11,10 @@ bool arp_send_broadcast_request(node_t *n, interface_t *ointf, ipv4_addr_t *ip_a
   EXPECT_RETURN_BOOL(ointf != nullptr, "Empty output interface param", false);
   EXPECT_RETURN_BOOL(ip_addr != nullptr, "Empty ip address param", false);
   // ...
+  printf(
+    "Sending broadcast request using interface: %s, for ip: " IPV4_ADDR_FMT "\n", 
+    ointf->if_name, IPV4_ADDR_BYTES_BE(*ip_addr)
+  );
   return false;
 }
 
