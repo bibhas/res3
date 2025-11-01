@@ -2,6 +2,10 @@
 
 #include "layer2.h"
 
+#pragma mark -
+
+// Ethernet
+
 ether_hdr_t *ether_hdr_alloc_with_payload(uint8_t *pkt, uint32_t pktlen) {
   /* 
    * [ free space ][ pkt ][free space]
@@ -18,6 +22,10 @@ ether_hdr_t *ether_hdr_alloc_with_payload(uint8_t *pkt, uint32_t pktlen) {
   return resp;
 }
 
+#pragma mark -
+
+// Layer 2 processing
+
 bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethhdr) {
   EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface param", false);
   EXPECT_RETURN_BOOL(ethhdr != nullptr, "Empty ethernet header param", false);
@@ -33,8 +41,13 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
   return false;
 }
 
-int layer2_frame_recv_pkt_bytes(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t pktlen) {
+#pragma mark -
+
+// Layer 2 I/O
+
+int layer2_node_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen) {
   // Entry point into our TCP/IP stack
   // TODO
   return 0;
 }
+

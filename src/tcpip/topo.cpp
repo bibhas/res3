@@ -33,13 +33,13 @@ graph_t* graph_create_two_node_linear_topology() {
   node_t *H0 = graph_add_node(topo, "H0");
   node_t *H1 = graph_add_node(topo, "H1");
   // Link nodes
-  link_nodes(H0, H1, "eth0/0", "eth0/1", 1);
+  link_nodes(H0, H1, "eth0/1", "eth0/2", 1);
   // H0
   node_set_loopback_address(H0, "122.1.1.0");
-  node_set_interface_ipv4_address(H0, "eth0/0", "20.1.1.1", 24);
+  node_set_interface_ipv4_address(H0, "eth0/1", "10.1.1.1", 24);
   // H1
   node_set_loopback_address(H1, "122.1.1.1");
-  node_set_interface_ipv4_address(H1, "eth0/1", "20.1.1.2", 24);
+  node_set_interface_ipv4_address(H1, "eth0/2", "10.1.1.2", 24);
   return topo;
 }
 

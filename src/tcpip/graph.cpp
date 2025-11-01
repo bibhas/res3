@@ -2,7 +2,7 @@
 #include "graph.h"
 #include "utils.h"
 #include "net.h"
-#include "comm.h"
+#include "phy.h"
 
 #pragma mark -
 
@@ -198,7 +198,7 @@ node_t *graph_add_node(graph_t *graph, const char *node_name) {
   // Initialize network properties
   node_netprop_init(&resp->netprop);
   // Start udp socket
-  bool status = comm_setup_udp_socket(&resp->udp.port, &resp->udp.fd);
+  bool status = phy_setup_udp_socket(&resp->udp.port, &resp->udp.fd);
   EXPECT_RETURN_VAL(status == true, "node_setup_udp_socket failed", nullptr);
   return resp;
 }
@@ -213,8 +213,4 @@ node_t* graph_find_node_by_name(graph_t *g, const char *node_name) {
   } GLTHREAD_FOREACH_END();
   return NULL;
 }
-
-// Sample topologies
-
-
 

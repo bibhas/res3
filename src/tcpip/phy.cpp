@@ -1,11 +1,11 @@
-// comm.cpp
+// phy.cpp
 
 #include <atomic>
 #include <cstdint>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include "layer2/layer2.h"
-#include "comm.h"
+#include "phy.h"
 #include "config.h"
 
 #pragma mark -
@@ -21,41 +21,41 @@ static std::atomic<bool> __receiver_thread_ready(false);
 
 // Private utility functions
 
-bool comm_pkt_buffer_shift_right(uint8_t **pktptr, uint32_t pktlen, uint32_t buflen) {
-  EXPECT_RETURN_BOOL(pktptr != nullptr, "Empty pkt out param", false);
-  EXPECT_RETURN_BOOL(pktlen <= buflen, "Params pktlen greater than buflen", false);
-  EXPECT_RETURN_BOOL(pktlen != 0, "Zero pktlen param", false);
-  uint32_t offset = buflen - pktlen; // Make sure buffer is at least 2 x MTU
-  if (likely(pktlen * 2 < buflen)) {
-    memcpy(*pktptr + offset, *pktptr, pktlen);
-    memset(*pktptr, 0, offset);
+bool phy_frame_buffer_shift_right(uint8_t **frameptr, uint32_t framelen, uint32_t buflen) {
+  EXPECT_RETURN_BOOL(frameptr != nullptr, "Empty frame out param", false);
+  EXPECT_RETURN_BOOL(framelen <= buflen, "Params framelen greater than buflen", false);
+  EXPECT_RETURN_BOOL(framelen != 0, "Zero framelen param", false);
+  uint32_t offset = buflen - framelen; // Make sure buffer is at least 2 x MTU
+  if (likely(framelen * 2 < buflen)) {
+    memcpy(*frameptr + offset, *frameptr, framelen);
+    memset(*frameptr, 0, offset);
   }
   else {
     // Expensive
-    memcpy(__temp_buffer, *pktptr, pktlen);
-    memset(*pktptr, 0, offset);
-    memcpy(*pktptr + offset, __temp_buffer, pktlen);
+    memcpy(__temp_buffer, *frameptr, framelen);
+    memset(*frameptr, 0, offset);
+    memcpy(*frameptr + offset, __temp_buffer, framelen);
   }
-  *pktptr += offset;
+  *frameptr += offset;
   return true; 
 }
 
-int comm_node_receive_interface_pkt_bytes(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t pktlen) {
+int phy_node_receive_interface_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen) {
   EXPECT_RETURN_BOOL(n != nullptr, "Empty node ptr param", false);
   EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface ptr param", false);
-  EXPECT_RETURN_BOOL(pkt != nullptr, "Empty packet ptr param", false);
+  EXPECT_RETURN_BOOL(frame != nullptr, "Empty packet ptr param", false);
   // TODO: Why exactly are we shifting the data since we distinguish between
   // send and receive buffers, and as such, they are two different allocations?
-  bool resp = comm_pkt_buffer_shift_right(&pkt, pktlen, CONFIG_MAX_PACKET_BUFFER_SIZE - CONFIG_IF_NAME_SIZE);
-  EXPECT_RETURN_VAL(resp == true, "comm_pkt_buffer_shift_right failed", -1);
-  return layer2_frame_recv_pkt_bytes(n, intf, pkt, pktlen); // Entry point into Layer 2
+  bool resp = phy_frame_buffer_shift_right(&frame, framelen, CONFIG_MAX_PACKET_BUFFER_SIZE - CONFIG_IF_NAME_SIZE);
+  EXPECT_RETURN_VAL(resp == true, "phy_frame_buffer_shift_right failed", -1);
+  return layer2_node_recv_frame_bytes(n, intf, frame, framelen); // Entry point into Layer 2
 }
 
 #pragma mark -
 
 // Public functions
 
-void comm_pkt_receiver_thread_main(graph_t *topo) {
+void phy_receiver_thread_main(graph_t *topo) {
   // First, gather all node socket descriptors
   fd_set fds; FD_ZERO(&fds);
   int max_fd = 0;
@@ -89,7 +89,7 @@ void comm_pkt_receiver_thread_main(graph_t *topo) {
         char *target_intf_name = (char *)__recv_buffer; // of size IF_NAME_SIZE
         interface_t *target_intf = node_get_interface_by_name(n, target_intf_name);
         EXPECT_CONTINUE(target_intf != nullptr, "Packet received on unknown interface");
-        resp = comm_node_receive_interface_pkt_bytes(n, target_intf, __recv_buffer + CONFIG_IF_NAME_SIZE, bytes - CONFIG_IF_NAME_SIZE);
+        resp = phy_node_receive_interface_frame_bytes(n, target_intf, __recv_buffer + CONFIG_IF_NAME_SIZE, bytes - CONFIG_IF_NAME_SIZE);
 #pragma unused(resp); // TODO: Fixme
       }
     }
@@ -97,11 +97,11 @@ void comm_pkt_receiver_thread_main(graph_t *topo) {
   }
 }
 
-bool comm_pkt_receiver_thread_ready() {
+bool phy_receiver_thread_ready() {
   return __receiver_thread_ready.load();
 }
 
-bool comm_setup_udp_socket(uint32_t *port, int *fd) {
+bool phy_setup_udp_socket(uint32_t *port, int *fd) {
   EXPECT_RETURN_BOOL(port != nullptr, "Empty port ptr param", false);
   EXPECT_RETURN_BOOL(fd != nullptr, "Empty socket fd ptr param", false);
   // Create a socket
@@ -135,8 +135,8 @@ bool comm_setup_udp_socket(uint32_t *port, int *fd) {
   return true;
 }
 
-int comm_interface_send_pkt_bytes(interface_t *intf, uint8_t *pkt, uint32_t pktlen) {
-  EXPECT_RETURN_BOOL(pkt != nullptr, "Empty packet ptr param", false);
+int phy_node_send_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen) {
+  EXPECT_RETURN_BOOL(frame != nullptr, "Empty packet ptr param", false);
   EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface ptr param", false);
   // Create socket
   int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -151,29 +151,29 @@ int comm_interface_send_pkt_bytes(interface_t *intf, uint8_t *pkt, uint32_t pktl
   strncpy((char *)__send_buffer, intf2->if_name, CONFIG_IF_NAME_SIZE);
   __send_buffer[CONFIG_IF_NAME_SIZE] = '\0';
   // Append rest of the data
-  memcpy((void *)(__send_buffer + CONFIG_IF_NAME_SIZE), (void *)pkt, pktlen);
+  memcpy((void *)(__send_buffer + CONFIG_IF_NAME_SIZE), (void *)frame, framelen);
   // Finally, send packet
   struct sockaddr_in addr;
   addr.sin_family = AF_INET;
   addr.sin_port = htons(nbr->udp.port);
   addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  int resp = sendto(fd, __send_buffer, pktlen + CONFIG_IF_NAME_SIZE, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr));
+  int resp = sendto(fd, __send_buffer, framelen + CONFIG_IF_NAME_SIZE, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr));
   EXPECT_RETURN_VAL(resp >= 0, "sendto failed", -1);
   // Cleanup
   close(fd);
   return resp; // Number of bytes sent
 }
 
-int comm_node_flood_pkt_bytes(node_t *n, interface_t *ign_intf, uint8_t *pkt, uint32_t pktlen) {
+int phy_node_flood_frame_bytes(node_t *n, interface_t *ignored, uint8_t *frame, uint32_t framelen) {
   EXPECT_RETURN_VAL(n != nullptr, "Empty node ptr param", -1);
-  EXPECT_RETURN_VAL(pkt != nullptr, "Empty packet ptr param", -1);
+  EXPECT_RETURN_VAL(frame != nullptr, "Empty packet ptr param", -1);
   int acc = 0;
   for (int i = 0; i < CONFIG_MAX_INTF_PER_NODE; i++) {
     if (!n->intf[i]) { continue; }
     interface_t *intf = n->intf[i];
-    if (intf == ign_intf) { continue; } // ignored interface
-    int resp = comm_interface_send_pkt_bytes(intf, pkt, pktlen); 
-    EXPECT_CONTINUE(resp == pktlen, "comp_pkt_send_bytes failed");
+    if (intf == ignored) { continue; } // ignored interface
+    int resp = phy_node_send_frame_bytes(n, intf, frame, framelen); 
+    EXPECT_CONTINUE(resp == framelen, "comp_frame_send_bytes failed");
     acc += resp;
   }
   return acc; // Number of bytes sent

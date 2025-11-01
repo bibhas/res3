@@ -2,7 +2,7 @@ set(common_sources
   "net.cpp"
   "graph.cpp"
   "utils.cpp"
-  "comm.cpp"
+  "phy.cpp"
   "topo.cpp"
   "layer2/layer2.cpp"
   "layer2/arp.cpp"
