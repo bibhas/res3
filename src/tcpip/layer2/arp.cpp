@@ -40,6 +40,7 @@ bool node_arp_send_broadcast_request(node_t *n, interface_t *ointf, ipv4_addr_t 
   // Pass frame to layer 1
   int resp = phy_node_send_frame_bytes(n, ointf, (uint8_t *)ether_hdr, framelen);
   EXPECT_RETURN_BOOL((uint32_t)resp == framelen, "phy_node_send_frame_bytes failed", false);
+  free(ether_hdr);
   return true;
 }
 
@@ -83,6 +84,7 @@ bool node_arp_send_reply_frame(node_t *n, interface_t *ointf, ether_hdr_t *in_et
   // Send out packet
   int resp = phy_node_send_frame_bytes(n, ointf, (uint8_t *)out_ether_hdr, out_framelen);
   EXPECT_RETURN_BOOL(resp == (int)out_framelen, "phy_node_send_frame_bytes failed", false);
+  free(out_ether_hdr);
   return true;
 }
 
