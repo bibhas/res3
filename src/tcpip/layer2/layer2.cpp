@@ -104,19 +104,23 @@ int layer2_switch_recv_frame_bytes(node_t *n, interface_t *iintf, uint8_t *frame
   EXPECT_RETURN_VAL(n != nullptr, "Empty node param", -1);
   EXPECT_RETURN_VAL(iintf != nullptr, "Empty ingress interface param", -1);
   EXPECT_RETURN_VAL(frame != nullptr, "Empty frame ptr param", -1);
-  // Every time we see a frame, we want to update said table
-  bool status = mac_table_process_reply(n->netprop.mac_table, (ether_hdr_t *)frame, iintf);
-#pragma unused(status)
-  // When we see a destination mac address, we will read the table to find the interface
   ether_hdr_t *ether_hdr = (ether_hdr_t *)frame;
+  // Every time we see a frame, we want to update said table
+  bool status = mac_table_process_reply(n->netprop.mac_table, ether_hdr, iintf);
+#pragma unused(status)
+  // First, handle broadcast frames
+  if (MAC_ADDR_IS_BROADCAST(ether_hdr->src_mac)) {
+    return phy_node_flood_frame_bytes(n, iintf, frame, framelen);
+  }
+  // Else, if we see a destination mac address, we will read the table to find the interface
   mac_entry_t *mac_entry = nullptr;
+  // If found, we will send packet off using that interfaces
   if (mac_table_lookup(n->netprop.mac_table, &ether_hdr->dst_mac, &mac_entry)) {
     // Found entry in MAC table
     interface_t *ointf = node_get_interface_by_name(n, (const char *)mac_entry->oif_name);
     EXPECT_RETURN_VAL(ointf != nullptr, "node_get_interface_by_name failed", -1);
     return phy_node_send_frame_bytes(n, ointf, frame, framelen);
   }
-  // If found, we will send packet off using that interfaces
   // If not, we will flood all interfaces like we already do below.
   return phy_node_flood_frame_bytes(n, iintf, frame, framelen);
 }

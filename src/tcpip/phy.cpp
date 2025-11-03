@@ -83,7 +83,7 @@ void phy_receiver_thread_main(graph_t *topo) {
         memset(__recv_buffer, 0, CONFIG_MAX_PACKET_BUFFER_SIZE);
         struct sockaddr_in sender;
         size_t bytes = recvfrom(n->udp.fd, (char *)__recv_buffer, CONFIG_MAX_PACKET_BUFFER_SIZE, 0, (struct sockaddr *)&sender, &addrlen);
-        printf("read %lu bytes\n", bytes);
+        printf("[%s] Read %lu bytes\n", n->node_name, bytes);
         EXPECT_FATAL(bytes >= 0, "recvfrom failed");
         // Do something with received data
         char *target_intf_name = (char *)__recv_buffer; // of size IF_NAME_SIZE
@@ -160,6 +160,7 @@ int phy_node_send_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint
   addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
   int resp = sendto(fd, __send_buffer, framelen + auxlen, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr));
   EXPECT_RETURN_VAL(resp >= 0, "sendto failed", -1);
+  printf("[%s] Sent %u bytes\n", n->node_name, framelen + auxlen);
   // Cleanup
   close(fd);
   return resp - auxlen ; // Number of bytes sent ()
