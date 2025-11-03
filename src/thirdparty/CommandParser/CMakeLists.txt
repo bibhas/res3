@@ -3,7 +3,7 @@ utils_add_interface_library(gluethread
 )
 
 utils_add_interface_library(libcli
-  SOURCES  
+  SOURCES
     cmd_hier.c
     parser.c
     serialize.c
@@ -11,9 +11,9 @@ utils_add_interface_library(libcli
     clistd.c
     clicbext.c
     ut/utinfra/ut_parser.c
-  LINKS gluethread
-  INCLUDES 
+  LINKS gluethread readline
+  INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}   # TODO: Make this private
-    ${CMAKE_CURRENT_SOURCE_DIR}/.. 
+    ${CMAKE_CURRENT_SOURCE_DIR}/..
   CFLAGS "-Wno-unused-result"
 )

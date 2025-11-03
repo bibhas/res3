@@ -27,6 +27,8 @@
 #include "cliconst.h"
 #include "css.h"
 #include "libcli.h"
+#include <readline/readline.h>
+#include <readline/history.h>
 
 extern param_t root;
 extern leaf_type_handler leaf_handler_array[LEAF_MAX];
@@ -399,9 +401,10 @@ command_parser(void){
 
     bool is_repeat_cmd;
     CMD_PARSE_STATUS status = UNKNOWN;
+    char *line = NULL;
+    char prompt[4096];
 
-    printf("run - \'show help\' cmd to learn more");
-    place_console(1);
+    printf("run - \'show help\' cmd to learn more\n");
     memset(&command_code_tlv, 0, sizeof(tlv_struct_t));
 
     command_code_tlv.leaf_type = INT;
@@ -409,36 +412,53 @@ command_parser(void){
     command_code_tlv.leaf_id[LEAF_ID_SIZE -1] = '\0';
     memset(cons_input_buffer, 0, CONS_INPUT_BUFFER_SIZE);
 
+    /* Initialize readline history */
+    using_history();
+
+    /* Load history from file if it exists */
+    read_history(CMD_HIST_RECORD_FILE);
+
     while(1){
 
         is_repeat_cmd = false;
 
-        if((fgets((char *)cons_input_buffer, sizeof(cons_input_buffer)-1, stdin) == NULL)){
-            printf("error in reading from stdin\n");
+        /* Build the prompt string */
+        snprintf(prompt, sizeof(prompt), "%s $ ", console_name);
+
+        /* Use readline instead of fgets */
+        line = readline(prompt);
+
+        /* Handle EOF (Ctrl-D) */
+        if(line == NULL){
+            printf("\nBye Bye\n");
+            write_history(CMD_HIST_RECORD_FILE);
             exit(EXIT_SUCCESS);
         }
-    
-        /*IF only enter is hit*/ 
-        if(strlen(cons_input_buffer) == 1){
-            cons_input_buffer[0]= '\0';
-            place_console(0);
-            continue; 
+
+        /* If only enter is hit (empty line) */
+        if(strlen(line) == 0){
+            free(line);
+            continue;
         }
 
-        cons_input_buffer[strlen(cons_input_buffer) - 1] = '\0';
+        /* Copy to buffer */
+        strncpy(cons_input_buffer, line, CONS_INPUT_BUFFER_SIZE - 1);
+        cons_input_buffer[CONS_INPUT_BUFFER_SIZE - 1] = '\0';
          
         status = parse_input_cmd(cons_input_buffer, strlen(cons_input_buffer), &is_repeat_cmd);
 
         if( is_repeat_cmd ) {
             memset(cons_input_buffer, 0, CONS_INPUT_BUFFER_SIZE);
-            place_console(1);
+            free(line);
             continue;
         }
 
+        /* Add command to readline history (for up/down arrow recall) */
+        add_history(line);
+
         if(status == COMPLETE && cmd_recording_enabled) {
-            record_command(CMD_HIST_RECORD_FILE,
-						   cons_input_buffer,
-						   strlen(cons_input_buffer));
+            /* Save all history to file after successful command */
+            write_history(CMD_HIST_RECORD_FILE);
 		}
 
 		cmd_recording_enabled = true;
@@ -449,7 +469,8 @@ command_parser(void){
 
         memset(cons_input_buffer, 0, CONS_INPUT_BUFFER_SIZE);
 
-        place_console(1);
+        /* Free the line allocated by readline */
+        free(line);
     }
 }
 
