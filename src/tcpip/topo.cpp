@@ -77,7 +77,7 @@ graph_t* graph_create_four_node_cross_topology() {
   link_nodes(H1, SW, "eth0/5", "eth0/4", 1);
   link_nodes(H2, SW, "eth0/8", "eth0/3", 1);
   link_nodes(H3, SW, "eth0/6", "eth0/2", 1);
-  link_nodes(H4, SW, "eth0/1", "eth0/7", 1);
+  link_nodes(H4, SW, "eth0/7", "eth0/1", 1);
   // H1
   node_set_loopback_address(H1, "122.1.1.1");
   node_set_interface_ipv4_address(H1, "eth0/5", "10.1.1.2", 24);

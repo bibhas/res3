@@ -40,7 +40,14 @@ bool node_get_interface_matching_subnet(node_t *n, ipv4_addr_t *addr, interface_
 
 // Interface Network Properties
 
+enum interface_mode_t {
+  INTF_MODE_UNKNOWN = 0,
+  INTF_MODE_L2_ACCESS = 1,
+  INTF_MODE_L2_TRUNK = 2
+};
+
 struct interface_netprop_t {
+  interface_mode_t mode;
   // L2 properties
   mac_addr_t mac_addr;
   // L3 properties
@@ -56,6 +63,7 @@ typedef struct interface_netprop_t interface_netprop_t;
 void interface_netprop_init(interface_netprop_t *prop);
 bool interface_assign_mac_address(interface_t *interface, const char *addrstr);
 void interface_dump_netprop(interface_t *i);
+void interface_set_mode(interface_t *i, interface_mode_t mode);
 
 #pragma mark -
 

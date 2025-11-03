@@ -22,18 +22,7 @@ struct __PACK__ ether_hdr_t {
   uint16_t type;
 };
 
-#define ETHER_HDR_SET_TYPE(HDR, TYPE) (HDR)->type = htons(TYPE)
-#define ETHER_HDR_TYPE(HDR) ntohs((HDR)->type)
-
 ether_hdr_t* ether_hdr_alloc_with_payload(uint8_t *pkt, uint32_t pktlen);
-
-// Accessor and setter functions for ether_hdr_t fields
-void ether_hdr_set_src_mac(ether_hdr_t *hdr, mac_addr_t addr);
-mac_addr_t ether_hdr_get_src_mac(ether_hdr_t *hdr);
-void ether_hdr_set_dst_mac(ether_hdr_t *hdr, mac_addr_t addr);
-mac_addr_t ether_hdr_get_dst_mac(ether_hdr_t *hdr);
-void ether_hdr_set_type(ether_hdr_t *hdr, uint16_t type);
-uint16_t ether_hdr_get_type(ether_hdr_t *hdr);
 
 #pragma mark -
 

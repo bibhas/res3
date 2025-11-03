@@ -77,4 +77,3 @@ bool arp_table_clear(arp_table_t *t);
 void arp_table_dump(arp_table_t *t);
 bool arp_table_process_reply(arp_table_t *t, arp_hdr_t *hdr, interface_t *intf);
 
-

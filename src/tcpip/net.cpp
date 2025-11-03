@@ -44,6 +44,7 @@ bool node_set_interface_ipv4_address(node_t *n, const char *intf, const char *ad
     .addr = addr,
     .mask = mask
   };
+  candidate->netprop.mode = INTF_MODE_UNKNOWN;
   return true;
 }
 
@@ -60,6 +61,7 @@ bool node_unset_interface_ipv4_address(node_t *n, const char *intf) {
     .addr = addr,
     .mask = 0
   };
+  candidate->netprop.mode = INTF_MODE_L2_ACCESS;
   return true;
 }
 
@@ -104,6 +106,7 @@ void interface_netprop_init(interface_netprop_t *prop) {
   prop->mac_addr.value = 0;
   prop->ip.configured = false;
   prop->ip.addr.value = 0;
+  prop->mode = INTF_MODE_L2_ACCESS; // Default
 }
 
 bool interface_assign_mac_address(interface_t *interface, const char *addrstr) {
@@ -118,6 +121,12 @@ void interface_dump_netprop(interface_t *i) {
   dump_line_indentation_guard_t guard;
   EXPECT_RETURN(i != nullptr, "Empty interface param");
   dump_line("MAC: " MAC_ADDR_FMT "\n", MAC_ADDR_BYTES_BE(i->netprop.mac_addr));
+  dump_line("Mode: ");
+  switch (i->netprop.mode) {
+    case INTF_MODE_L2_ACCESS: printf("ACCESS\n"); break;
+    case INTF_MODE_L2_TRUNK:  printf("TRUNK\n"); break;
+    case INTF_MODE_UNKNOWN:   printf("UNKNOWN\n"); break;
+  }
   dump_line("IP:\n");
   dump_line_indentation_add(1);
   dump_line("Configured?: %s\n", i->netprop.ip.configured ? "true" : "false");

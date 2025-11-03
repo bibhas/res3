@@ -34,7 +34,8 @@ void interface_dump(interface_t *interface);
 #define INTF_IP(INTFPTR) (&((INTFPTR)->netprop.ip.addr))
 #define INTF_IP_SUBNET_MASK(INTFPTR) (&((INTFPTR)->netprop.ip.mask))
 #define INTF_IS_L3_MODE(INTFPTR) ((INTFPTR)->netprop.ip.configured)
-#define INTF_IS_L2_MODE(INTFPTR) (false) // TODO: Update this once we implement l2 mode
+#define INTF_IS_L2_MODE(INTFPTR) (!INTF_IS_L3_MODE(INTFPTR) && \
+  (INTFPTR)->netprop.mode != INTF_MODE_UNKNOWN)
 
 #pragma mark -
 

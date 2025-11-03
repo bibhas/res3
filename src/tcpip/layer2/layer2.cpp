@@ -2,6 +2,9 @@
 
 #include <arpa/inet.h>
 #include "layer2.h"
+#include "phy.h"
+
+int layer2_switch_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen);
 
 #pragma mark -
 
@@ -29,13 +32,16 @@ ether_hdr_t* ether_hdr_alloc_with_payload(uint8_t *pkt, uint32_t pktlen) {
 bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethhdr) {
   EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface param", false);
   EXPECT_RETURN_BOOL(ethhdr != nullptr, "Empty ethernet header param", false);
-  // We currently only support operating in L3 mode
   if (INTF_IS_L3_MODE(intf)) { 
-    // Even in L3 mode, we will only respond if the frame is specially intended
-    // for this interface (based on the dest MAC) or it's a broadcast MAC address.
+    // We will only respond if the frame is specially intended for this
+    // interface (based on the dest MAC) or it's a broadcast MAC address.
     if (MAC_ADDR_IS_EQUAL(ethhdr->dst_mac, intf->netprop.mac_addr) || MAC_ADDR_IS_BROADCAST(ethhdr->dst_mac)) {
       return true;
     }
+  }
+  else if (INTF_IS_L2_MODE(intf)) {
+    // This interface is operating in L2 mode
+    return true; // Accept all frames
   }
   return false; // Rejected
 }
@@ -86,6 +92,7 @@ int layer2_node_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, u
   else if (INTF_IS_L2_MODE(intf)) {
     // TODO: This interface is configured in L2 mode. 
     // Go ahead and act like the good little L2 switch that you are.
+    return layer2_switch_recv_frame_bytes(n, intf, frame, framelen);
   }
   // Interface is not in a functional state. 
   // Silently drop igress frames.
@@ -93,3 +100,12 @@ int layer2_node_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, u
   return 0;
 }
 
+int layer2_switch_recv_frame_bytes(node_t *n, interface_t *iintf, uint8_t *frame, uint32_t framelen) {
+  // To start off with, let us just implement a switch that floods all the local interfaces
+  // with the received frames. No learning just yet.
+  EXPECT_RETURN_VAL(n != nullptr, "Empty node param", -1);
+  EXPECT_RETURN_VAL(iintf != nullptr, "Empty ingress interface param", -1);
+  EXPECT_RETURN_VAL(frame != nullptr, "Empty frame ptr param", -1);
+  // Flood all interfaces in this node (except the incoming one)
+  return phy_node_flood_frame_bytes(n, iintf, frame, framelen);
+}
