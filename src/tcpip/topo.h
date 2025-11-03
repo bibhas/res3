@@ -55,5 +55,7 @@ graph_t* graph_create_two_node_linear_topology();
  */
 graph_t* graph_create_three_node_linear_topology();
 
-
+/*
+ * TODO: Make visual diagram of the + topology.
+ */
 graph_t* graph_create_four_node_cross_topology();

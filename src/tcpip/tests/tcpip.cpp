@@ -9,7 +9,7 @@
 #include "phy.h"
 
 int main(int argc, const char **argv) {
-  graph_t *topo = graph_create_three_node_ring_topology();
+  graph_t *topo = graph_create_four_node_cross_topology();
   // Setup CLI
   cli_init();
   // Create graph
