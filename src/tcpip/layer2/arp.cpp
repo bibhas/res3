@@ -132,7 +132,9 @@ bool arp_table_add_entry(arp_table_t *t, arp_entry_t *entry) {
   if (arp_table_lookup(t, &entry->ip_addr, &__entry)) {
     if (ARP_ENTRY_PTR_KEYS_ARE_EQUAL(entry, __entry)) {
       // Table already contains entry with the same (ip, intf) primary key
-      return false;
+      // Just update it
+      __entry->mac_addr = entry->mac_addr;
+      return true;
     }
   }
   auto owned_entry = (arp_entry_t *)calloc(1, sizeof(arp_entry_t));

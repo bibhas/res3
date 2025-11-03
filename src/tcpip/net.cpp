@@ -13,6 +13,7 @@ void node_netprop_init(node_netprop_t *prop) {
   prop->loopback.configured = false;
   prop->loopback.addr.value = 0;
   arp_table_init(&prop->arp_table);
+  mac_table_init(&prop->mac_table);
 }
 
 bool node_set_loopback_address(node_t *n, const char *addrstr) {

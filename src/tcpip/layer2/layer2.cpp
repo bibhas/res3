@@ -101,11 +101,14 @@ int layer2_node_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, u
 }
 
 int layer2_switch_recv_frame_bytes(node_t *n, interface_t *iintf, uint8_t *frame, uint32_t framelen) {
-  // To start off with, let us just implement a switch that floods all the local interfaces
-  // with the received frames. No learning just yet.
   EXPECT_RETURN_VAL(n != nullptr, "Empty node param", -1);
   EXPECT_RETURN_VAL(iintf != nullptr, "Empty ingress interface param", -1);
   EXPECT_RETURN_VAL(frame != nullptr, "Empty frame ptr param", -1);
-  // Flood all interfaces in this node (except the incoming one)
+  // Every time we see a frame, we want to update said table
+  bool status = mac_table_process_reply(n->netprop.mac_table, (ether_hdr_t *)frame, iintf);
+#pragma unused(status)
+  // When we see a destination mac address, we will read the table to find the interface
+  // If found, we will send packet off using that interfaces
+  // If not, we will flood all interfaces like we already do below.
   return phy_node_flood_frame_bytes(n, iintf, frame, framelen);
 }

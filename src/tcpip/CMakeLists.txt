@@ -6,6 +6,7 @@ set(common_sources
   "topo.cpp"
   "layer2/layer2.cpp"
   "layer2/arp.cpp"
+  "layer2/mac.cpp"
 )
 
 utils_add_interface_library(tcpip_base

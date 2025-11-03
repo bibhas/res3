@@ -5,6 +5,7 @@
 #include <cstdint>
 #include "utils.h"
 #include "layer2/arp.h"
+#include "layer2/mac.h"
 
 // Forward declarations
 
@@ -12,6 +13,7 @@ typedef struct node_t node_t;
 typedef struct interface_t interface_t;
 typedef struct graph_t graph_t;
 typedef struct arp_table_t arp_table_t;
+typedef struct mac_table_t mac_table_t;
 
 #pragma mark -
 
@@ -20,6 +22,7 @@ typedef struct arp_table_t arp_table_t;
 struct node_netprop_t {
   // L2 properties
   arp_table_t *arp_table = nullptr;
+  mac_table_t *mac_table = nullptr;
   // L3 properties 
   struct {
     bool configured;
