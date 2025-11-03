@@ -162,10 +162,8 @@ bool ipv4_addr_render(ipv4_addr_t *addr, char *out) {
 
 // MAC
 
-bool mac_addr_fill_broadcast(mac_addr_t *addr) {
-  EXPECT_RETURN_BOOL(addr != nullptr, "Empty addr param", false);
+void mac_addr_fill_broadcast(mac_addr_t *addr) {
   memset(addr->bytes, 0xFF, 6);
-  return true;
 }
 
 bool mac_addr_try_parse(const char *addrstr, mac_addr_t *out) {

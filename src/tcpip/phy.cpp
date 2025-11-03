@@ -150,6 +150,7 @@ int phy_node_send_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint
   // Append null terminated dest interface name
   strncpy((char *)__send_buffer, intf2->if_name, CONFIG_IF_NAME_SIZE);
   __send_buffer[CONFIG_IF_NAME_SIZE] = '\0';
+  uint32_t auxlen = CONFIG_IF_NAME_SIZE;
   // Append rest of the data
   memcpy((void *)(__send_buffer + CONFIG_IF_NAME_SIZE), (void *)frame, framelen);
   // Finally, send packet
@@ -157,11 +158,11 @@ int phy_node_send_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint
   addr.sin_family = AF_INET;
   addr.sin_port = htons(nbr->udp.port);
   addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  int resp = sendto(fd, __send_buffer, framelen + CONFIG_IF_NAME_SIZE, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr));
+  int resp = sendto(fd, __send_buffer, framelen + auxlen, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr));
   EXPECT_RETURN_VAL(resp >= 0, "sendto failed", -1);
   // Cleanup
   close(fd);
-  return resp; // Number of bytes sent
+  return resp - auxlen ; // Number of bytes sent ()
 }
 
 int phy_node_flood_frame_bytes(node_t *n, interface_t *ignored, uint8_t *frame, uint32_t framelen) {

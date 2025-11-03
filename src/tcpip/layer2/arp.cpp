@@ -1,21 +1,98 @@
 // arp.cpp
 
+#include <arpa/inet.h>
 #include "graph.h"
 #include "net.h"
 #include "arp.h"
+#include "layer2.h"
+#include "phy.h"
 
 #pragma mark -
 
-bool arp_send_broadcast_request(node_t *n, interface_t *ointf, ipv4_addr_t *ip_addr) {
+// I/O
+
+bool node_arp_send_broadcast_request(node_t *n, interface_t *ointf, ipv4_addr_t *ip_addr) {
   EXPECT_RETURN_BOOL(n != nullptr, "Empty node param", false);
   EXPECT_RETURN_BOOL(ointf != nullptr, "Empty output interface param", false);
   EXPECT_RETURN_BOOL(ip_addr != nullptr, "Empty ip address param", false);
-  // ...
   printf(
     "Sending broadcast request using interface: %s, for ip: " IPV4_ADDR_FMT "\n", 
     ointf->if_name, IPV4_ADDR_BYTES_BE(*ip_addr)
   );
-  return false;
+  // Allocate Ethernet frame wide enough to fit the ARP header
+  uint32_t framelen = sizeof(ether_hdr_t) + sizeof(arp_hdr_t);
+  ether_hdr_t *ether_hdr = (ether_hdr_t *)calloc(1, framelen);
+  // Fill out Ethernet header fields
+  memcpy((void *)ether_hdr->src_mac.bytes, (void *)INTF_MAC(ointf)->bytes, 6);    // our intf MAC
+  mac_addr_fill_broadcast(&ether_hdr->dst_mac);                                   // broadcast MAC address
+  ether_hdr->type = htons(ETHER_TYPE_ARP);
+  // Fill out ARP header fields
+  arp_hdr_t *arp_hdr = (arp_hdr_t *)(ether_hdr + 1);
+  arp_hdr->hw_type = htons(ARP_HW_TYPE_ETHERNET);
+  arp_hdr->proto_type = htons(ETHER_TYPE_IPV4); // PTYPE shares field values with ETHER_TYPE
+  arp_hdr->hw_addr_len = 6; // 6 byte MAC address
+  arp_hdr->proto_addr_len = 4; // 4 byte IP address
+  arp_hdr->op_code = htons(ARP_OP_CODE_REQUEST); // 1 = request, 2 = reply
+  memcpy((void *)arp_hdr->src_mac, (void *)INTF_MAC(ointf)->bytes, 6);
+  arp_hdr->src_ip = htonl(INTF_IP(ointf)->value);
+  memset(arp_hdr->dst_mac, 0, 6);
+  arp_hdr->dst_ip = htonl(ip_addr->value); // <- The IPv4 address for which we want to know the MAC address
+  // Pass frame to layer 1
+  int resp = phy_node_send_frame_bytes(n, ointf, (uint8_t *)ether_hdr, framelen);
+  EXPECT_RETURN_BOOL((uint32_t)resp == framelen, "phy_node_send_frame_bytes failed", false);
+  return true;
+}
+
+bool node_arp_recv_broadcast_request_frame(node_t *n, interface_t *iintf, ether_hdr_t *hdr) {
+  EXPECT_RETURN_BOOL(n != nullptr, "Empty node param", false);
+  EXPECT_RETURN_BOOL(iintf != nullptr, "Empty input interface param", false);
+  EXPECT_RETURN_BOOL(hdr != nullptr, "Empty ethernet header param", false);
+  arp_hdr_t *arp_hdr = (arp_hdr_t *)(hdr + 1); // payload, beyond the ethernet header
+  ipv4_addr_t target_ip = {.value = ntohl(arp_hdr->dst_ip)};
+  if (IPV4_ADDR_PTR_IS_EQUAL(INTF_IP(iintf), &target_ip) && ntohs(arp_hdr->op_code) == ARP_OP_CODE_REQUEST) {
+    return node_arp_send_reply_frame(n, iintf, hdr);
+  }
+  // Ignore packet
+  // Note, this is not an error, so we return a true return value.
+  return true; // TODO: Add log / counter to record dropped frame statistics
+}
+
+bool node_arp_send_reply_frame(node_t *n, interface_t *ointf, ether_hdr_t *in_ether_hdr) {
+  EXPECT_RETURN_BOOL(n != nullptr, "Empty node param", false);
+  EXPECT_RETURN_BOOL(ointf != nullptr, "Empty input interface param", false);
+  EXPECT_RETURN_BOOL(in_ether_hdr != nullptr, "Empty ethernet header param", false);
+  arp_hdr_t *in_arp_hdr = (arp_hdr_t *)(in_ether_hdr + 1);
+  // Allocate frame
+  uint32_t out_framelen = sizeof(ether_hdr_t) + sizeof(arp_hdr_t);
+  ether_hdr_t *out_ether_hdr = (ether_hdr_t *)calloc(1, out_framelen);
+  // Fill up Ethernet header fields (note: be mindful of host/net. byte order)
+  memcpy((void *)&out_ether_hdr->dst_mac, (void *)&in_ether_hdr->src_mac, 6);
+  memcpy((void *)&out_ether_hdr->src_mac, (void *)&INTF_MAC(ointf)->bytes, 6);
+  out_ether_hdr->type = htons(ETHER_TYPE_ARP);
+  // Fill up ARP header fields (note: be mindful of host/net. byte order)
+  arp_hdr_t *out_arp_hdr = (arp_hdr_t *)(out_ether_hdr + 1);
+  out_arp_hdr->hw_type = htons(ARP_HW_TYPE_ETHERNET);
+  out_arp_hdr->proto_type = htons(ETHER_TYPE_IPV4);
+  out_arp_hdr->hw_addr_len = 6;
+  out_arp_hdr->proto_addr_len = 4;
+  out_arp_hdr->op_code = htons(ARP_OP_CODE_REPLY);
+  memcpy((void *)&out_arp_hdr->dst_mac, (void *)&in_ether_hdr->src_mac, 6);
+  out_arp_hdr->dst_ip = in_arp_hdr->src_ip; // already in network byte order
+  memcpy((void *)&out_arp_hdr->src_mac, (void *)&INTF_MAC(ointf)->bytes, 6);
+  out_arp_hdr->src_ip = htonl(INTF_IP(ointf)->value);
+  // Send out packet
+  int resp = phy_node_send_frame_bytes(n, ointf, (uint8_t *)out_ether_hdr, out_framelen);
+  EXPECT_RETURN_BOOL(resp == (int)out_framelen, "phy_node_send_frame_bytes failed", false);
+  return true;
+}
+
+bool node_arp_recv_reply_frame(node_t *n, interface_t *iintf, ether_hdr_t *hdr) {
+  EXPECT_RETURN_BOOL(n != nullptr, "Empty node param", false);
+  EXPECT_RETURN_BOOL(iintf != nullptr, "Empty input interface param", false);
+  EXPECT_RETURN_BOOL(hdr != nullptr, "Empty ethernet header param", false);
+  printf("Received ARP reply!\n");
+  arp_hdr_t *arp_hdr = (arp_hdr_t *)(hdr + 1);
+  return arp_table_process_reply(n->netprop.arp_table, arp_hdr, iintf);
 }
 
 #pragma mark -
@@ -118,7 +195,7 @@ bool arp_table_process_reply(arp_table_t *t, arp_hdr_t *hdr, interface_t *intf) 
   EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface param", false);
   // Fill out entry fields
   arp_entry_t entry = {0};
-  entry.ip_addr = {.value = hdr->src_ip};    // network byte order
+  entry.ip_addr = {.value = ntohl(hdr->src_ip)};    // network byte order
   entry.mac_addr = {.bytes = {BYTES_FROM_BYTEARRAY_BE(hdr->src_mac)}};
   strncpy((char *)entry.oif_name, (char *)intf->if_name, CONFIG_IF_NAME_SIZE);
   glthread_init(&entry.arp_table_glue);

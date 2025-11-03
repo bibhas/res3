@@ -92,7 +92,7 @@ bool node_get_interface_matching_subnet(node_t *n, ipv4_addr_t *addr, interface_
       return true;
     }
   }
-  return false;
+  return false; // Couldn't find
 }
 
 #pragma mark -

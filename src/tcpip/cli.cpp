@@ -94,8 +94,8 @@ int run_node_resolve_arp_callback(param_t *p, ser_buff_t *tlvs, op_mode mode) {
   resp = node_get_interface_matching_subnet(node, &ip_addr, &ointf);
   EXPECT_RETURN_VAL(resp == true, "node_get_interface_matching_subnet failed", -1);
   // Perform ARP broadcast request
-  resp = arp_send_broadcast_request(node, ointf, &ip_addr);
-  EXPECT_RETURN_VAL(resp == true, "arp_send_broadcast_request failed", -1);
+  resp = node_arp_send_broadcast_request(node, ointf, &ip_addr);
+  EXPECT_RETURN_VAL(resp == true, "node_arp_send_broadcast_request failed", -1);
   return 0;
 }
 

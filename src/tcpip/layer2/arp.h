@@ -6,8 +6,13 @@
 #include "utils.h"
 #include "config.h"
 
+#define ARP_HW_TYPE_ETHERNET 1
+#define ARP_OP_CODE_REQUEST 1
+#define ARP_OP_CODE_REPLY 2
+
 typedef struct node_t node_t;
 typedef struct interface_t interface_t;
+typedef struct ether_hdr_t ether_hdr_t;
 
 #pragma mark -
 
@@ -16,18 +21,21 @@ typedef struct interface_t interface_t;
 typedef struct arp_hdr_t arp_hdr_t;
 
 struct __PACK__ arp_hdr_t {
-  uint16_t hw_type;       // 1 = Ethernet
-  uint16_t proto_type;    // 0x800 = IPv4
-  uint8_t hw_addr_len;    // 6 = sizeof(mac_addr_t)
-  uint8_t proto_addr_len; // 4 = sizeof(ipv4_addr_t)
-  uint16_t op_code;       // 1 = request, 2 = reply
-  uint8_t src_mac[6];     
-  uint32_t src_ip;
-  uint8_t dst_mac[6];     
-  uint32_t dst_ip;        // Used only for request
+  uint16_t  hw_type;        // 1 = Ethernet
+  uint16_t  proto_type;     // 0x800 = IPv4
+  uint8_t   hw_addr_len;    // 6 = sizeof(mac_addr_t)
+  uint8_t   proto_addr_len; // 4 = sizeof(ipv4_addr_t)
+  uint16_t  op_code;        // 1 = request, 2 = reply
+  uint8_t   src_mac[6];     
+  uint32_t  src_ip;
+  uint8_t   dst_mac[6];     
+  uint32_t  dst_ip;         // Used only for request
 };
 
-bool arp_send_broadcast_request(node_t *n, interface_t *ointf, ipv4_addr_t *ip_addr);
+bool node_arp_send_broadcast_request(node_t *n, interface_t *ointf, ipv4_addr_t *ip_addr);
+bool node_arp_recv_broadcast_request_frame(node_t *n, interface_t *iintf, ether_hdr_t *hdr);
+bool node_arp_send_reply_frame(node_t *n, interface_t *oif, ether_hdr_t *hdr);
+bool node_arp_recv_reply_frame(node_t *n, interface_t *iintf, ether_hdr_t *hdr);
 
 #pragma mark -
 

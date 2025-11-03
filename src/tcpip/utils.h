@@ -127,7 +127,7 @@ struct __PACK__ mac_addr_t {
 
 typedef struct mac_addr_t mac_addr_t;
 
-bool mac_addr_fill_broadcast(mac_addr_t *addr);
+void mac_addr_fill_broadcast(mac_addr_t *addr);
 bool mac_addr_try_parse(const char *addrstr, mac_addr_t *out);
 
 #define MAC_ADDR_IS_BROADCAST(MAC) ( \
