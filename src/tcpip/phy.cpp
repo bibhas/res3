@@ -173,6 +173,7 @@ int phy_node_flood_frame_bytes(node_t *n, interface_t *ignored, uint8_t *frame, 
     if (!n->intf[i]) { continue; }
     interface_t *intf = n->intf[i];
     if (intf == ignored) { continue; } // ignored interface
+    if (INTF_IS_L3_MODE(intf)) { continue; } // No flooding out of L3 interfaces
     int resp = phy_node_send_frame_bytes(n, intf, frame, framelen); 
     EXPECT_CONTINUE(resp == framelen, "comp_frame_send_bytes failed");
     acc += resp;
