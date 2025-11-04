@@ -12,6 +12,8 @@
 
 #define ETHER_TYPE_ARP  0x0806
 #define ETHER_TYPE_IPV4 0x0800
+#define ETHER_TYPE_VLAN 0x8100
+
 #define ETHER_FCS_PTR(HDRPTR, PAY_SZ) (ether_hdr_t *)(HDRPTR + sizeof(ether_hdr_t) + PAY_SZ)
 
 typedef struct ether_hdr_t ether_hdr_t;

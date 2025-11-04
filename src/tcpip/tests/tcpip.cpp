@@ -9,6 +9,7 @@
 #include "phy.h"
 
 int main(int argc, const char **argv) {
+  setvbuf(stdout, NULL, _IOLBF, 0); // Disable buffering (for now, remove TODO)
   graph_t *topo = graph_create_four_node_cross_topology();
   // Setup CLI
   cli_init();

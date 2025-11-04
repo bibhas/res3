@@ -4,9 +4,11 @@
 #include <cstdint>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <CommandParser/libcli.h>
 #include "layer2/layer2.h"
 #include "phy.h"
 #include "config.h"
+#include "pcap.h"
 
 #pragma mark -
 
@@ -48,6 +50,7 @@ int phy_node_receive_interface_frame_bytes(node_t *n, interface_t *intf, uint8_t
   // send and receive buffers, and as such, they are two different allocations?
   bool resp = phy_frame_buffer_shift_right(&frame, framelen, CONFIG_MAX_PACKET_BUFFER_SIZE - CONFIG_IF_NAME_SIZE);
   EXPECT_RETURN_VAL(resp == true, "phy_frame_buffer_shift_right failed", -1);
+  pcap_pkt_dump(frame, framelen);
   return layer2_node_recv_frame_bytes(n, intf, frame, framelen); // Entry point into Layer 2
 }
 
@@ -75,6 +78,7 @@ void phy_receiver_thread_main(graph_t *topo) {
     int resp = select(max_fd + 1, &ready_fds, nullptr, nullptr, nullptr);
     EXPECT_FATAL(resp >= 0, "selct failed");
     if (resp == 0) { continue; } // select timed-out
+    command_parser_lock();
     // Process ready fds
     GLTHREAD_FOREACH_BEGIN(&topo->node_list, curr) {
       node_t *n = node_ptr_from_graph_glue(curr);
@@ -94,6 +98,7 @@ void phy_receiver_thread_main(graph_t *topo) {
       }
     }
     GLTHREAD_FOREACH_END();
+    command_parser_unlock();
   }
 }
 
