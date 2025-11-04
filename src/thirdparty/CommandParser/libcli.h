@@ -98,6 +98,11 @@ start_shell(void);
 void
 cli_register_ctrlC_handler(void (*app_ctrlC_signal_handler)(void ));
 
+
+void command_parser_lock(void);
+
+void command_parser_unlock(void);
+
 #ifdef __cplusplus
 }
 #endif

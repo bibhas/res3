@@ -624,11 +624,12 @@ dump_cmd_tree(){
     _dump_one_cmd(&root, 0);
 }
 
-extern 
+extern
 void command_parser(void);
 
-extern 
+extern
 void  enhanced_command_parser(void);
+
 
 void
 start_shell(void){

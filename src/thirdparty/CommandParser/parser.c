@@ -21,6 +21,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <pthread.h>
 #include "string_util.h"
 #include <errno.h>
 #include "cmdtlv.h"
@@ -36,6 +37,9 @@ extern ser_buff_t *tlv_buff;
 char console_name[TERMINAL_NAME_SIZE];
 extern void
 run_test_case(char *file_name, uint16_t tc_no);
+
+/* Mutex for thread synchronization to prevent garbled stdout output */
+static pthread_mutex_t command_parser_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static bool cmd_recording_enabled = true;
 void parse_file(char *file_name) ;
@@ -419,7 +423,7 @@ command_parser(void){
     read_history(CMD_HIST_RECORD_FILE);
 
     while(1){
-
+        usleep(700); // TODO: Fix this
         is_repeat_cmd = false;
 
         /* Build the prompt string */
@@ -441,15 +445,19 @@ command_parser(void){
             continue;
         }
 
+        /* Lock mutex before processing command to serialize with background threads */
+        pthread_mutex_lock(&command_parser_mutex);
+
         /* Copy to buffer */
         strncpy(cons_input_buffer, line, CONS_INPUT_BUFFER_SIZE - 1);
         cons_input_buffer[CONS_INPUT_BUFFER_SIZE - 1] = '\0';
-         
+
         status = parse_input_cmd(cons_input_buffer, strlen(cons_input_buffer), &is_repeat_cmd);
 
         if( is_repeat_cmd ) {
             memset(cons_input_buffer, 0, CONS_INPUT_BUFFER_SIZE);
             free(line);
+            pthread_mutex_unlock(&command_parser_mutex);
             continue;
         }
 
@@ -471,6 +479,9 @@ command_parser(void){
 
         /* Free the line allocated by readline */
         free(line);
+
+        /* Unlock mutex after command processing is complete */
+        pthread_mutex_unlock(&command_parser_mutex);
     }
 }
 
@@ -515,5 +526,16 @@ parse_file(char *file_name) {
 	
 	fclose(fptr);
 	place_console(1);
-}	
+}
+
+/* Public API for thread synchronization */
+void
+command_parser_lock(void) {
+	pthread_mutex_lock(&command_parser_mutex);
+}
+
+void
+command_parser_unlock(void) {
+	pthread_mutex_unlock(&command_parser_mutex);
+}
 
