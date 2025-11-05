@@ -4,7 +4,6 @@
 #include "pcap.h"
 #include "layer2/layer2.h"
 #include "layer2/arp.h"
-#include "layer2/vlan.h"
 #include "layer3/ipv4.h"
 #include "utils.h"
 
@@ -23,62 +22,61 @@ void pcap_pkt_dump_ethernet(uint8_t *frame, uint32_t framelen) {
   dump_line("Src. MAC: " MAC_ADDR_FMT "\n", MAC_ADDR_BYTES_BE(src_mac));
   mac_addr_t dst_mac = ether_hdr_read_dst_mac(ether_hdr);
   dump_line("Dst. MAC: " MAC_ADDR_FMT "\n", MAC_ADDR_BYTES_BE(dst_mac));
-  dump_line("Type: ");
   uint16_t ether_type = ether_hdr_read_type(ether_hdr);
   uint8_t *payload = (uint8_t *)(ether_hdr + 1);
   uint32_t len = framelen - sizeof(ether_hdr_t);
   switch (ether_type) {
     case ETHER_TYPE_VLAN: {
-      printf("VLAN\n"); 
       pcap_pkt_dump_vlan(payload, len);
       break; 
     }
     case ETHER_TYPE_ARP: { 
-      printf("ARP\n"); 
+      printf("Type: ARP\n"); 
       pcap_pkt_dump_arp(payload, len);
       break; 
     }
     case ETHER_TYPE_IPV4: {
-      printf("IPv4\n"); 
+      printf("Type: IPv4\n"); 
       pcap_pkt_dump_ipv4(payload, len);
       break; 
     }
     default: { 
-      printf("?? (%u)\n", ether_type); 
+      printf("Type: ?? (%u)\n", ether_type); 
       break; 
     }
   }
 }
 
 void pcap_pkt_dump_vlan(uint8_t *hdr, uint32_t framelen) {
+  dump_line_indentation_add(1);
   dump_line("VLAN Tag:");
   dump_line("==========================\n");
-  dump_line_indentation_guard_t guard0;
-  dump_line_indentation_add(1);
   vlan_tag_t *vlan_tag = (vlan_tag_t *)hdr;
-  uint16_t tpi = vlan_read_tpi(vlan_tag);
-  dump_line("Tag Protocol Identifier: %u\n", tpi);
-  dump_line("Tag Control Information:\n");
-  dump_line_indentation_add(1);
-  dump_line("Priority Code Point: %u\n", vlan_read_pcp(vlan_tag));
-  dump_line("Drop Eligible Indicator: %u\n", vlan_read_dei(vlan_tag));
-  dump_line("VLAN Identifier: %u\n", vlan_read_vlan_id(vlan_tag));
+  dump_line("Priority Code Point: %u\n", vlan_tag_read_pcp(vlan_tag));
+  dump_line("Drop Eligible Indicator: %u\n", vlan_tag_read_dei(vlan_tag));
+  dump_line("VLAN ID: %u\n", vlan_tag_read_vlan_id(vlan_tag));
+  dump_line("==========================\n");
+  dump_line_indentation_add(-1);
+  uint16_t ether_type = vlan_tag_read_ether_type(vlan_tag);
   uint8_t *payload = (uint8_t *)(vlan_tag + 1);
   uint32_t len = framelen - sizeof(vlan_tag_t);
-  switch (tpi) {
+  switch (ether_type) {
     case ETHER_TYPE_VLAN: {
       pcap_pkt_dump_vlan(payload, len);
       break; 
     }
     case ETHER_TYPE_ARP: { 
+      printf("Type: ARP\n");
       pcap_pkt_dump_arp(payload, len);
       break; 
     }
     case ETHER_TYPE_IPV4: {
+      printf("Type: IPv4\n");
       pcap_pkt_dump_ipv4(payload, len);
       break; 
     }
     default: { 
+      printf("Type: ?? (%u)\n", ether_type);
       break; 
     }
   }
