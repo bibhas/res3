@@ -43,3 +43,7 @@ utils_add_executable(tests
           "layer2/tests/layer2tests.cpp"
 )
 
+utils_add_executable(pcaptest
+  EXTENDS tcpip_base
+  SOURCES "tests/pcaptest.cpp" 
+)
