@@ -50,7 +50,7 @@ int phy_node_receive_interface_frame_bytes(node_t *n, interface_t *intf, uint8_t
   // send and receive buffers, and as such, they are two different allocations?
   bool resp = phy_frame_buffer_shift_right(&frame, framelen, CONFIG_MAX_PACKET_BUFFER_SIZE - CONFIG_IF_NAME_SIZE);
   EXPECT_RETURN_VAL(resp == true, "phy_frame_buffer_shift_right failed", -1);
-  pcap_pkt_dump(frame, framelen);
+  //pcap_pkt_dump(frame, framelen);
   return layer2_node_recv_frame_bytes(n, intf, frame, framelen); // Entry point into Layer 2
 }
 

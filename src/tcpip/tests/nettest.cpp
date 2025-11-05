@@ -1,7 +1,7 @@
 // nettest.cpp
 
 #include <iostream>
-#include <linux/in.h>
+#include <arpa/inet.h>
 #include <cstdlib>
 #include "net.h"
 

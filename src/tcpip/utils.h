@@ -145,4 +145,7 @@ bool mac_addr_try_parse(const char *addrstr, mac_addr_t *out);
 #define MAC_ADDR_PTR_IS_EQUAL(MAC0, MAC1) \
   ((MAC0)->value == (MAC1)->value)
 
+extern mac_addr_t empty_mac_addr;
 
+#define MAC_ADDR_ZEROED empty_mac_addr
+#define MAC_ADDR_PTR_ZEROED (&empty_mac_addr)

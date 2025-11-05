@@ -109,7 +109,7 @@ bool mac_table_process_reply(mac_table_t *t, ether_hdr_t *ether_hdr, interface_t
   EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface param", false);
   // Fill out entry fields
   mac_entry_t entry = {0};
-  entry.mac_addr = {.bytes = {BYTES_FROM_BYTEARRAY_BE(ether_hdr->src_mac.bytes)}};
+  entry.mac_addr = ether_hdr_read_src_mac(ether_hdr);
   strncpy((char *)entry.oif_name, (char *)intf->if_name, CONFIG_IF_NAME_SIZE);
   glthread_init(&entry.mac_table_glue);
   // Add entry to thread (function will memcpy entry fields)

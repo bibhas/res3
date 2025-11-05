@@ -191,21 +191,17 @@ TEST_CASE("ARP table process reply", "[arp][reply]") {
   REQUIRE(table != nullptr);
   // Create a mock ARP header
   arp_hdr_t hdr = {0};
-  hdr.hw_type = htons(1); // Ethernet
-  hdr.proto_type = htons(0x0800); // IPv4
-  hdr.hw_addr_len = 6;
-  hdr.proto_addr_len = 4;
-  hdr.op_code = htons(2); // Reply
+  arp_hdr_set_hw_type(&hdr, 1); // Ethernet
+  arp_hdr_set_proto_type(&hdr, 0x0800); // IPv4
+  arp_hdr_set_hw_addr_len(&hdr, 6);
+  arp_hdr_set_proto_addr_len(&hdr, 4);
+  arp_hdr_set_op_code(&hdr, 2); // Reply
   // Source (sender) info
-  hdr.src_mac[0] = 0xDE;
-  hdr.src_mac[1] = 0xAD;
-  hdr.src_mac[2] = 0xBE;
-  hdr.src_mac[3] = 0xEF;
-  hdr.src_mac[4] = 0x00;
-  hdr.src_mac[5] = 0x01;
+  mac_addr_t src_mac = {.bytes = {0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x01}};
+  arp_hdr_set_src_mac(&hdr, &src_mac);
   // IP in network byte order
-  uint8_t ip_bytes[] = {192, 168, 100, 50};
-  memcpy(&hdr.src_ip, ip_bytes, 4);
+  ipv4_addr_t src_ip = {.bytes = {192, 168, 100, 50}};
+  arp_hdr_set_src_ip(&hdr, &src_ip);
   // Create a mock interface
   interface_t intf = {0};
   strncpy((char *)intf.if_name, "eth0/0", CONFIG_IF_NAME_SIZE);
@@ -213,8 +209,7 @@ TEST_CASE("ARP table process reply", "[arp][reply]") {
   bool result = arp_table_process_reply(table, &hdr, &intf);
   REQUIRE(result == true);
   // Verify the entry was added
-  ipv4_addr_t lookup_ip = {0};
-  memcpy(&lookup_ip.value, &hdr.src_ip, 4);
+  ipv4_addr_t lookup_ip = arp_hdr_read_src_ip(&hdr);
   arp_entry_t *found = nullptr;
   bool lookup_result = arp_table_lookup(table, &lookup_ip, &found);
   REQUIRE(lookup_result == true);

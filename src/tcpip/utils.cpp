@@ -8,6 +8,8 @@
 #include "net.h"
 #include "utils.h"
 
+mac_addr_t empty_mac_addr {.value = 0};
+
 bool __ipv4_addr_str_try_parse_host(const char *addrstr, uint32_t *out);
 bool __ipv4_addr_str_apply_mask(const char *prefix, uint8_t mask, uint32_t *out);
 
