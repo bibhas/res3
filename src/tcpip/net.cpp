@@ -119,14 +119,47 @@ bool interface_assign_mac_address(interface_t *intf, const char *addrstr) {
 }
 
 void interface_dump_netprop(interface_t *intf) {
-  dump_line_indentation_guard_t guard;
+  dump_line_indentation_guard_t guard0;
   EXPECT_RETURN(intf != nullptr, "Empty interface param");
   dump_line("MAC: " MAC_ADDR_FMT "\n", MAC_ADDR_BYTES_BE(intf->netprop.mac_addr));
   dump_line("Mode: ");
-  switch (intf->netprop.mode) {
-    case INTF_MODE_L2_ACCESS: printf("ACCESS\n"); break;
-    case INTF_MODE_L2_TRUNK:  printf("TRUNK\n"); break;
-    case INTF_MODE_UNKNOWN:   printf("UNKNOWN\n"); break;
+  switch (INTF_MODE(intf)) {
+    case INTF_MODE_L2_ACCESS: {
+      printf("ACCESS\n");
+      dump_line_indentation_guard_t guard1;
+      dump_line_indentation_add(1);
+      uint16_t vlan = intf->netprop.vlan_memberships[0];
+      dump_line("VLAN Membership: ");
+      if (vlan == 0) {
+        printf("NONE\n");
+      }
+      else {
+        printf("%u\n", vlan);
+      }
+      break;
+    }
+    case INTF_MODE_L2_TRUNK: {
+      printf("TRUNK\n"); 
+      dump_line_indentation_guard_t guard1;
+      dump_line_indentation_add(1);
+      uint16_t vlan0 = intf->netprop.vlan_memberships[0];
+      dump_line("VLAN Memberships: ");
+      if (vlan0 == 0) {
+        printf("None\n");
+      }
+      else {
+        for (int i = 0; i < CONFIG_MAX_VLAN_PER_INTF; i++) {
+          uint16_t vlan = intf->netprop.vlan_memberships[i];
+          if (vlan != 0) {
+            printf("%u ", vlan);
+          }
+        }
+      }
+      break;
+    }
+    case INTF_MODE_UNKNOWN:   
+      printf("UNKNOWN\n"); 
+      break;
   }
   dump_line("IP:\n");
   dump_line_indentation_add(1);
