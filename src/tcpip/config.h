@@ -12,3 +12,7 @@
 // comm.h related
 
 #define CONFIG_MAX_PACKET_BUFFER_SIZE   2048
+
+// net.h related
+
+#define CONFIG_MAX_VLAN_PER_INTF 16

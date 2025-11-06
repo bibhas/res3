@@ -53,6 +53,7 @@ struct interface_netprop_t {
   interface_mode_t mode;
   // L2 properties
   mac_addr_t mac_addr;
+  uint16_t vlan_memberships[CONFIG_MAX_VLAN_PER_INTF];
   // L3 properties
   struct {
     bool configured;
@@ -63,14 +64,24 @@ struct interface_netprop_t {
 
 typedef struct interface_netprop_t interface_netprop_t;
 
+#define INTF_MAC(INTFPTR) (&((INTFPTR)->netprop.mac_addr))
+#define INTF_IP(INTFPTR) (&((INTFPTR)->netprop.ip.addr))
+#define INTF_IP_SUBNET_MASK(INTFPTR) (&((INTFPTR)->netprop.ip.mask))
+#define INTF_IS_L3_MODE(INTFPTR) ((INTFPTR)->netprop.ip.configured)
+#define INTF_IS_L2_MODE(INTFPTR) (!INTF_IS_L3_MODE(INTFPTR) && \
+  (INTFPTR)->netprop.mode != INTF_MODE_UNKNOWN)
+#define INTF_MODE(INTFPTR) ((INTFPTR)->netprop.mode)
+
+
 void interface_netprop_init(interface_netprop_t *prop);
 bool interface_assign_mac_address(interface_t *interface, const char *addrstr);
 void interface_dump_netprop(interface_t *i);
-void interface_set_mode(interface_t *i, interface_mode_t mode);
+void interface_enable_l2_mode(interface_t *i, interface_mode_t mode);
+bool interface_add_l2_vlan_membership(interface_t *i, uint16_t vlan_id);
+void interface_clear_l2_vlan_memberships(interface_t *i);
 
 #pragma mark -
 
 // Graph properties
 
 void graph_dump_netprop(graph_t *g);
-

@@ -110,31 +110,97 @@ void interface_netprop_init(interface_netprop_t *prop) {
   prop->mode = INTF_MODE_L2_ACCESS; // Default
 }
 
-bool interface_assign_mac_address(interface_t *interface, const char *addrstr) {
-  EXPECT_RETURN_BOOL(interface != nullptr, "Empty interface param", false);
+bool interface_assign_mac_address(interface_t *intf, const char *addrstr) {
+  EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface param", false);
   EXPECT_RETURN_BOOL(addrstr != nullptr, "Empty address string param", false);
-  int resp = mac_addr_try_parse(addrstr, &interface->netprop.mac_addr);
+  int resp = mac_addr_try_parse(addrstr, &intf->netprop.mac_addr);
   EXPECT_RETURN_BOOL(resp == true, "mac_addr_try_parse failed", false);
   return true;
 }
 
-void interface_dump_netprop(interface_t *i) {
+void interface_dump_netprop(interface_t *intf) {
   dump_line_indentation_guard_t guard;
-  EXPECT_RETURN(i != nullptr, "Empty interface param");
-  dump_line("MAC: " MAC_ADDR_FMT "\n", MAC_ADDR_BYTES_BE(i->netprop.mac_addr));
+  EXPECT_RETURN(intf != nullptr, "Empty interface param");
+  dump_line("MAC: " MAC_ADDR_FMT "\n", MAC_ADDR_BYTES_BE(intf->netprop.mac_addr));
   dump_line("Mode: ");
-  switch (i->netprop.mode) {
+  switch (intf->netprop.mode) {
     case INTF_MODE_L2_ACCESS: printf("ACCESS\n"); break;
     case INTF_MODE_L2_TRUNK:  printf("TRUNK\n"); break;
     case INTF_MODE_UNKNOWN:   printf("UNKNOWN\n"); break;
   }
   dump_line("IP:\n");
   dump_line_indentation_add(1);
-  dump_line("Configured?: %s\n", i->netprop.ip.configured ? "true" : "false");
-  if (i->netprop.ip.configured) {
-    dump_line("Address: " IPV4_ADDR_FMT "\n", IPV4_ADDR_BYTES_BE(i->netprop.ip.addr));
-    dump_line("Mask: %u\n", i->netprop.ip.mask);
+  dump_line("Configured?: %s\n", intf->netprop.ip.configured ? "true" : "false");
+  if (intf->netprop.ip.configured) {
+    dump_line("Address: " IPV4_ADDR_FMT "\n", IPV4_ADDR_BYTES_BE(intf->netprop.ip.addr));
+    dump_line("Mask: %u\n", intf->netprop.ip.mask);
   }
+}
+
+void interface_enable_l2_mode(interface_t *intf, interface_mode_t mode) {
+  EXPECT_RETURN(intf != nullptr, "Empty interface param");
+  if (INTF_MODE(intf) == mode) {
+    return;
+  } 
+  intf->netprop.mode = mode;
+  // Disable L3 mode if mode != INTF_MODE_UNKNOWN
+  if (mode != INTF_MODE_UNKNOWN && INTF_IS_L3_MODE(intf)) {
+    intf->netprop.ip.configured = false;
+  }
+  // Update VLAN memberships
+  switch (mode) {
+    case INTF_MODE_UNKNOWN: {
+      // Remove all memberships
+      interface_clear_l2_vlan_memberships(intf);
+      break;
+    }
+    case INTF_MODE_L2_ACCESS: {
+      // Remove all but the first membership
+      uint16_t saved = intf->netprop.vlan_memberships[0];
+      interface_clear_l2_vlan_memberships(intf);
+      interface_add_l2_vlan_membership(intf, saved);
+      break;
+    }
+    case INTF_MODE_L2_TRUNK: {
+      // Leave as is
+      break;
+    }
+  }
+}
+
+bool interface_add_l2_vlan_membership(interface_t *intf, uint16_t vlan_id) {
+  EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface param", false);
+  EXPECT_RETURN_BOOL(vlan_id != 0, "Invalid VLAN ID (0)", false); // 0 = reserved
+  if (INTF_IS_L3_MODE(intf) || INTF_MODE(intf) == INTF_MODE_UNKNOWN) {
+    return false;
+  }
+  switch (INTF_MODE(intf)) {
+    case INTF_MODE_L2_ACCESS: {
+      if (intf->netprop.vlan_memberships[0] != 0) {
+        // Max 1 VLAN membership in access mode
+        return false;
+      }
+      intf->netprop.vlan_memberships[0] = vlan_id;
+      return true;
+    }
+    case INTF_MODE_L2_TRUNK: {
+      for (int j = 0; j < CONFIG_MAX_VLAN_PER_INTF; j++) {
+        if (intf->netprop.vlan_memberships[j] == 0) {
+          intf->netprop.vlan_memberships[j] = vlan_id;
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+  // Should never reach this point!
+  LOG_ERR("Interface in invalid mode!"); 
+  return false;
+}
+
+void interface_clear_l2_vlan_memberships(interface_t *intf) {
+  EXPECT_RETURN(intf != nullptr, "Empty interface param");
+  memset((void *)intf->netprop.vlan_memberships, 0, sizeof(uint8_t) * CONFIG_MAX_VLAN_PER_INTF);
 }
 
 #pragma mark -
