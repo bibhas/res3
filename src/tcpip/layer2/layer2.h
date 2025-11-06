@@ -24,7 +24,11 @@ struct __PACK__ ether_hdr_t {
   uint16_t type;
 };
 
+// Precondition: Enough headroom in front of `pkt` to fit a `ether_hdr_t`
 ether_hdr_t* ether_hdr_alloc_with_payload(uint8_t *pkt, uint32_t pktlen);
+// Precondition: Enough headroom in front of `hdr` to fit a `vlan_tag_t`
+ether_hdr_t* ether_hdr_tag_vlan(ether_hdr_t *hdr, uint32_t len, uint16_t vlanid, uint32_t *newlen);
+ether_hdr_t* ether_hdr_untag_vlan(ether_hdr_t *hdr, uint32_t len, uint32_t *newlen);
 
 #pragma mark -
 
@@ -36,6 +40,10 @@ int layer2_node_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, u
 #pragma mark -
 
 // Accessors for `ether_hdr_t`
+
+static inline void ether_hdr_init(const ether_hdr_t *hdr) {
+  memset((void *)hdr, 0, sizeof(ether_hdr_t));
+}
 
 static inline mac_addr_t ether_hdr_read_src_mac(const ether_hdr_t *hdr) {
   return hdr->src_mac;
@@ -79,6 +87,9 @@ struct __PACK__ vlan_tag_t {
   uint16_t ether_type; // left-over from ether_hdr_t
 };
 
+static inline void vlan_tag_init(vlan_tag_t *t) {
+  memset((void *)t, 0, sizeof(vlan_tag_t));
+}
 static inline uint8_t vlan_tag_read_pcp(vlan_tag_t *t) {
   uint16_t tci = ntohs(t->tci);
   return (tci >> 13) & 0x07; // 0b111 = 3 bits
