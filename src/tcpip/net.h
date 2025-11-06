@@ -72,7 +72,6 @@ typedef struct interface_netprop_t interface_netprop_t;
   (INTFPTR)->netprop.mode != INTF_MODE_UNKNOWN)
 #define INTF_MODE(INTFPTR) ((INTFPTR)->netprop.mode)
 
-
 void interface_netprop_init(interface_netprop_t *prop);
 bool interface_assign_mac_address(interface_t *interface, const char *addrstr);
 void interface_dump_netprop(interface_t *i);
@@ -85,3 +84,10 @@ void interface_clear_l2_vlan_memberships(interface_t *i);
 // Graph properties
 
 void graph_dump_netprop(graph_t *g);
+
+#pragma mark -
+
+// Interface utils
+
+void node_interface_enable_l2_mode(node_t *n, const char *intf_name, interface_mode_t mode);
+bool node_interface_add_l2_vlan_membership(node_t *n, const char *intf_name, uint16_t vlan_id);

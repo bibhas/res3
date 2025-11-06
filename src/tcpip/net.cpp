@@ -98,6 +98,22 @@ bool node_get_interface_matching_subnet(node_t *n, ipv4_addr_t *addr, interface_
   return false; // Couldn't find
 }
 
+void node_interface_enable_l2_mode(node_t *n, const char *intf_name, interface_mode_t mode) {
+  EXPECT_RETURN(n != nullptr, "Empty node param");
+  EXPECT_RETURN(intf_name != nullptr, "Empty interface name param");
+  interface_t *intf = node_get_interface_by_name(n, intf_name);
+  EXPECT_RETURN(intf != nullptr, "node_get_interface_by_name failed");
+  interface_enable_l2_mode(intf, mode);
+}
+
+bool node_interface_add_l2_vlan_membership(node_t *n, const char *intf_name, uint16_t vlan_id) {
+  EXPECT_RETURN_BOOL(n != nullptr, "Empty node param", false);
+  EXPECT_RETURN_BOOL(intf_name != nullptr, "Empty interface name param", false);
+  interface_t *intf = node_get_interface_by_name(n, intf_name);
+  EXPECT_RETURN_BOOL(intf != nullptr, "node_get_interface_by_name failed", false);
+  return interface_add_l2_vlan_membership(intf, vlan_id);
+}
+
 #pragma mark -
 
 // Interface
@@ -154,6 +170,7 @@ void interface_dump_netprop(interface_t *intf) {
             printf("%u ", vlan);
           }
         }
+        printf("\n");
       }
       break;
     }
