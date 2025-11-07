@@ -85,7 +85,8 @@ TEST_CASE("L3 Mode", "[layer2][interface][qualify]") {
     ether_hdr_set_type(hdr, ETHER_TYPE_IPV4);
     ether_hdr_t *tagged_hdr = ether_hdr_tag_vlan(hdr, sizeof(ether_hdr_t), 100);
     // L3 interfaces should reject tagged frames
-    bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr);
+    uint16_t vlan_id = 0;
+    bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr, &vlan_id);
     REQUIRE(resp == false);
   }
   SECTION("Untagged frame on an L3 interface") {
@@ -95,20 +96,25 @@ TEST_CASE("L3 Mode", "[layer2][interface][qualify]") {
     SECTION("Destination MAC == Interface MAC") {
       ether_hdr_set_dst_mac(hdr, &TEST_MAC_ADDR0);
       // L3 interfaces should accept untagged frames if DST_MAC == INTF_MAC
-      bool resp = layer2_qualify_recv_frame_on_interface(&intf, hdr);
+      uint16_t vlan_id = 0;
+      bool resp = layer2_qualify_recv_frame_on_interface(&intf, hdr, &vlan_id);
       REQUIRE(resp == true);
+      REQUIRE(vlan_id == 0);
     }
     SECTION("Destination MAC != Interface MAC") {
       ether_hdr_set_dst_mac(hdr, &TEST_MAC_ADDR1);
       // L3 interfaces should not accept untagged frames if DST_MAC != INTF_MAC
-      bool resp = layer2_qualify_recv_frame_on_interface(&intf, hdr);
+      uint16_t vlan_id = 0;
+      bool resp = layer2_qualify_recv_frame_on_interface(&intf, hdr, &vlan_id);
       REQUIRE(resp == false);
     }
     SECTION("Destination MAC == Broadcast Address") {
       ether_hdr_set_dst_mac(hdr, &TEST_MAC_BCAST);
       // L3 interfaces should accept untagged frames to broadcast address
-      bool resp = layer2_qualify_recv_frame_on_interface(&intf, hdr);
+      uint16_t vlan_id = 0;
+      bool resp = layer2_qualify_recv_frame_on_interface(&intf, hdr, &vlan_id);
       REQUIRE(resp == true);
+      REQUIRE(vlan_id == 0);
     }
   }
 }
@@ -135,22 +141,26 @@ TEST_CASE("L2 ACCESS Mode", "[layer2][interface][qualify]") {
     SECTION("No assigned VLANs") {
       interface_clear_l2_vlan_memberships(&intf);
       // L2 ACCESS mode without any VLAN assignment should reject all ingress frames
-      bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr);
+      uint16_t vlan_id = 0;
+      bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr, &vlan_id);
       REQUIRE(resp == false);
     }
     SECTION("Matches port VLAN") {
       interface_clear_l2_vlan_memberships(&intf);
       interface_add_l2_vlan_membership(&intf, TEST_VLAN_ID_VALID0);
       // L2 ACCESS mode should allow ingress frames with matching VLAN ID
-      bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr);
+      uint16_t vlan_id = 0;
+      bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr, &vlan_id);
       REQUIRE(resp == true);
+      REQUIRE(vlan_id == TEST_VLAN_ID_VALID0);
     }
     SECTION("Does not match port VLAN") {
       interface_clear_l2_vlan_memberships(&intf);
       interface_add_l2_vlan_membership(&intf, TEST_VLAN_ID_INVALID);
       SECTION("0th VLAN ID doesn't match") {
         // L2 ACCESS mode should not allow ingress frames with different VLAN ID
-        bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr);
+        uint16_t vlan_id = 0;
+        bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr, &vlan_id);
         REQUIRE(resp == false);
       }
       SECTION("0th VLAN ID doesn't match but Nth does") {
@@ -158,7 +168,8 @@ TEST_CASE("L2 ACCESS Mode", "[layer2][interface][qualify]") {
         // allow us to add more than one VLANs in L2 ACCESS mode.
         intf.netprop.vlan_memberships[1] = TEST_VLAN_ID_VALID0;
         // L2 ACCESS mode should not allow ingress frames with different VLAN ID
-        bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr);
+        uint16_t vlan_id = 0;
+        bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr, &vlan_id);
         REQUIRE(resp == false);
       }
     }
@@ -173,7 +184,8 @@ TEST_CASE("L2 ACCESS Mode", "[layer2][interface][qualify]") {
     SECTION("No assigned VLANs") {
       interface_clear_l2_vlan_memberships(&intf);
       // L2 ACCESS mode without any VLAN assignment should reject all ingress frames
-      bool resp = layer2_qualify_recv_frame_on_interface(&intf, hdr);
+      uint16_t vlan_id = 0;
+      bool resp = layer2_qualify_recv_frame_on_interface(&intf, hdr, &vlan_id);
       REQUIRE(resp == false);
     }
     SECTION("Has assigned VLAN") {
@@ -181,8 +193,10 @@ TEST_CASE("L2 ACCESS Mode", "[layer2][interface][qualify]") {
       interface_add_l2_vlan_membership(&intf, TEST_VLAN_ID_VALID0);
       // L2 ACCESS mode with assigned VLANs should accept (and ultimately tag)
       // untagged frames (tagging is out of scope for this test/function).
-      bool resp = layer2_qualify_recv_frame_on_interface(&intf, hdr);
+      uint16_t vlan_id = 0;
+      bool resp = layer2_qualify_recv_frame_on_interface(&intf, hdr, &vlan_id);
       REQUIRE(resp == true);
+      REQUIRE(vlan_id == TEST_VLAN_ID_VALID0);
     }
   }
 }
@@ -205,7 +219,8 @@ TEST_CASE("L2 TRUNK Mode", "[layer2][interface][qualify]") {
     SECTION("No assigned VLANs") {
       interface_clear_l2_vlan_memberships(&intf);
       // L2 ACCESS mode without any VLAN assignment should reject all ingress frames
-      bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr);
+      uint16_t vlan_id = 0;
+      bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr, &vlan_id);
       REQUIRE(resp == false);
     }
     SECTION("Matches port VLAN") {
@@ -213,15 +228,19 @@ TEST_CASE("L2 TRUNK Mode", "[layer2][interface][qualify]") {
       SECTION("Matches first") {
         interface_add_l2_vlan_membership(&intf, TEST_VLAN_ID_VALID0);
         // L2 ACCESS mode should allow ingress frames with matching VLAN ID
-        bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr);
+        uint16_t vlan_id = 0;
+        bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr, &vlan_id);
         REQUIRE(resp == true);
+        REQUIRE(vlan_id == TEST_VLAN_ID_VALID0);
       }
       SECTION("Matches Nth") {
         interface_add_l2_vlan_membership(&intf, TEST_VLAN_ID_VALID1);
         interface_add_l2_vlan_membership(&intf, TEST_VLAN_ID_VALID0);
         // L2 ACCESS mode should allow ingress frames with matching VLAN ID
-        bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr);
+        uint16_t vlan_id = 0;
+        bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr, &vlan_id);
         REQUIRE(resp == true);
+        REQUIRE(vlan_id == TEST_VLAN_ID_VALID0);
       }
     }
     SECTION("Does not match port VLAN") {
@@ -229,7 +248,8 @@ TEST_CASE("L2 TRUNK Mode", "[layer2][interface][qualify]") {
       interface_add_l2_vlan_membership(&intf, TEST_VLAN_ID_INVALID);
       SECTION("0th VLAN ID doesn't match") {
         // L2 ACCESS mode should not allow ingress frames with different VLAN ID
-        bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr);
+        uint16_t vlan_id = 0;
+        bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr, &vlan_id);
         REQUIRE(resp == false);
       }
     }
@@ -244,14 +264,16 @@ TEST_CASE("L2 TRUNK Mode", "[layer2][interface][qualify]") {
     SECTION("No assigned VLANs") {
       interface_clear_l2_vlan_memberships(&intf);
       // L2 TRUNK mode without any VLAN assignment should reject all ingress frames
-      bool resp = layer2_qualify_recv_frame_on_interface(&intf, hdr);
+      uint16_t vlan_id = 0;
+      bool resp = layer2_qualify_recv_frame_on_interface(&intf, hdr, &vlan_id);
       REQUIRE(resp == false);
     }
     SECTION("Has assigned VLAN") {
       interface_clear_l2_vlan_memberships(&intf);
       interface_add_l2_vlan_membership(&intf, TEST_VLAN_ID_VALID0);
       // L2 TRUNK mode with assigned VLANs should not accept any untagged frames.
-      bool resp = layer2_qualify_recv_frame_on_interface(&intf, hdr);
+      uint16_t vlan_id = 0;
+      bool resp = layer2_qualify_recv_frame_on_interface(&intf, hdr, &vlan_id);
       REQUIRE(resp == false);
     }
   }
@@ -272,7 +294,8 @@ TEST_CASE("L2 UNKNOWN Mode", "[layer2][interface][qualify]") {
     ether_hdr_set_type(hdr, ETHER_TYPE_IPV4);
     ether_hdr_t *tagged_hdr = ether_hdr_tag_vlan(hdr, sizeof(ether_hdr_t), TEST_VLAN_ID_VALID0);
     // UNKNOWN mode must reject all ingress frames
-    bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr);
+    uint16_t vlan_id = 0;
+    bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr, &vlan_id);
     REQUIRE(resp == false);
   }
   SECTION("Untagged frame") {
@@ -282,7 +305,8 @@ TEST_CASE("L2 UNKNOWN Mode", "[layer2][interface][qualify]") {
     ether_hdr_set_dst_mac(hdr, &TEST_MAC_ADDR0);
     ether_hdr_set_type(hdr, ETHER_TYPE_IPV4);
     // UNKNOWN mode must reject all ingress frames
-    bool resp = layer2_qualify_recv_frame_on_interface(&intf, hdr);
+    uint16_t vlan_id = 0;
+    bool resp = layer2_qualify_recv_frame_on_interface(&intf, hdr, &vlan_id);
     REQUIRE(resp == false);
   }
 }

@@ -104,9 +104,10 @@ ether_hdr_t* ether_hdr_untag_vlan(ether_hdr_t *hdr, uint32_t len, uint32_t *newl
 
 // Layer 2 processing
 
-bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethhdr) {
+bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethhdr, uint16_t *vlan_id) {
   EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface param", false);
   EXPECT_RETURN_BOOL(ethhdr != nullptr, "Empty ethernet header param", false);
+  EXPECT_RETURN_BOOL(vlan_id != nullptr, "Empty VLAN ID ptr param", false);
   if (INTF_IS_L3_MODE(intf)) {
     if (ETHER_HDR_VLAN_TAGGED(ethhdr)) {
       // We won't accept any VLAN tagged frames in L3 mode.
@@ -117,6 +118,7 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
     // interface (based on the dest MAC) or it's a broadcast MAC address.
     mac_addr_t dst_mac = ether_hdr_read_dst_mac(ethhdr);
     if (MAC_ADDR_IS_EQUAL(dst_mac, intf->netprop.mac_addr) || MAC_ADDR_IS_BROADCAST(dst_mac)) {
+      *vlan_id = 0;
       return true;
     }
   }
@@ -132,9 +134,14 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
         if (!interface_test_vlan_membership(intf, vlan_tag_read_vlan_id(tag))) {
           return false; // tag VLAN id does not match interface's VLAN
         }
+        *vlan_id = vlan_tag_read_vlan_id(tag);
+        return true;
       }
       else {
-        // We're dealing with an untagged frame
+        // We're dealing with an untagged frame.
+        // Caller needs to be tag and L2 switch this frame.
+        *vlan_id = intf->netprop.vlan_memberships[0];
+        return true;
       }
     }
     else if (INTF_MODE(intf) == INTF_MODE_L2_TRUNK) {
@@ -148,8 +155,10 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
       if (!interface_test_vlan_membership(intf, vlan_tag_read_vlan_id(tag))) {
         return false; // tag VLAN id does not match interface's VLAN(s)
       }
+      *vlan_id = vlan_tag_read_vlan_id(tag);
+      return true;
     }
-    return true; // Accept 
+    return false; // unreachable
   }
   else if (INTF_MODE(intf) == INTF_MODE_UNKNOWN) {
     // Interface is neither configuered for L3 nor
@@ -157,7 +166,7 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
     // Reject all ingress frames.
     return false;
   }
-  return false; // Rejected
+  return false; // unreachable
 }
 
 #pragma mark -
@@ -171,7 +180,8 @@ int layer2_node_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, u
   EXPECT_RETURN_VAL(frame != nullptr, "Empty frame ptr param", -1);
   // First check if we should even consider this frame
   ether_hdr_t *ether_hdr = (ether_hdr_t *)frame;
-  if (!layer2_qualify_recv_frame_on_interface(intf, ether_hdr)) {
+  uint16_t vlan_id = 0;
+  if (!layer2_qualify_recv_frame_on_interface(intf, ether_hdr, &vlan_id)) {
     // Drop the frame
     return framelen;
   }
