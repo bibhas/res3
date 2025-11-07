@@ -23,5 +23,3 @@ bool phy_setup_udp_socket(uint32_t *port, int *fd);
 // Frame I/O
 
 int phy_node_send_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen);
-int phy_node_flood_frame_bytes(node_t *n, interface_t *ignored, uint8_t *frame, uint32_t framelen);
-
