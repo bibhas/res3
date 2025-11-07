@@ -60,9 +60,12 @@ graph_t* graph_create_three_node_linear_topology();
  */
 graph_t* graph_create_four_node_cross_topology();
 
-
 /*
  * TODO: Make ASCII diagram.
  */
 graph_t *graph_create_dual_switch_topology();
 
+/*
+ * TODO: Make ASCII diagram.
+ */
+graph_t *graph_create_quad_switch_loop_topology();
