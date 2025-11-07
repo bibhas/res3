@@ -180,12 +180,26 @@ int layer2_node_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, u
   EXPECT_RETURN_VAL(frame != nullptr, "Empty frame ptr param", -1);
   // First check if we should even consider this frame
   ether_hdr_t *ether_hdr = (ether_hdr_t *)frame;
-  uint16_t vlan_id = 0;
+  uint16_t vlan_id = 0; // <- Overwritten by qualify fn below
   if (!layer2_qualify_recv_frame_on_interface(intf, ether_hdr, &vlan_id)) {
     // Drop the frame
     return framelen;
   }
-  if (INTF_IS_L3_MODE(intf)) { 
+  if (INTF_IS_L2_MODE(intf)) {
+    // TODO: This interface is configured in L2 mode. 
+    // Go ahead and act like the good little L2 switch that you are.
+    if (!ETHER_HDR_VLAN_TAGGED(ether_hdr)) {
+      // If not tagged, we need to tag an ingress frame (w/ `vlan_id`)
+      uint32_t new_framelen = 0; // <- Updated by fn below
+      ether_hdr_t *new_ether_hdr = ether_hdr_tag_vlan(ether_hdr, framelen, vlan_id, &new_framelen);
+      EXPECT_RETURN_VAL(new_ether_hdr != nullptr, "ether_hdr_tag_vlan failed", -1);
+      EXPECT_RETURN_VAL(new_framelen > framelen, "new_framelen too small", -1);
+      ether_hdr = new_ether_hdr;
+      framelen = new_framelen;
+    }
+    return layer2_switch_recv_frame_bytes(n, intf, frame, framelen);
+  }
+  else if (INTF_IS_L3_MODE(intf)) { 
     // Interface is configured in L3 mode
     uint16_t hdr_type = ether_hdr_read_type(ether_hdr);
     // Check if it's an ARP message
@@ -212,11 +226,6 @@ int layer2_node_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, u
     else {
       // TODO: We need to delegate processing of this frame to L3
     }
-  }
-  else if (INTF_IS_L2_MODE(intf)) {
-    // TODO: This interface is configured in L2 mode. 
-    // Go ahead and act like the good little L2 switch that you are.
-    return layer2_switch_recv_frame_bytes(n, intf, frame, framelen);
   }
   // Interface is not in a functional state. 
   // Silently drop igress frames.
