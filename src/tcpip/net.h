@@ -50,13 +50,13 @@ enum interface_mode_t {
 };
 
 struct interface_netprop_t {
-  interface_mode_t mode;
+  interface_mode_t mode = INTF_MODE_UNKNOWN;
   // L2 properties
   mac_addr_t mac_addr;
-  uint16_t vlan_memberships[CONFIG_MAX_VLAN_PER_INTF];
+  uint16_t vlan_memberships[CONFIG_MAX_VLAN_PER_INTF] = {0};
   // L3 properties
   struct {
-    bool configured;
+    bool configured = false;
     ipv4_addr_t addr;
     uint8_t mask;
   } ip;
@@ -73,11 +73,13 @@ typedef struct interface_netprop_t interface_netprop_t;
 #define INTF_MODE(INTFPTR) ((INTFPTR)->netprop.mode)
 
 void interface_netprop_init(interface_netprop_t *prop);
-bool interface_assign_mac_address(interface_t *interface, const char *addrstr);
+bool interface_assign_mac_address(interface_t *i, const char *addrstr);
+void interface_assign_ip_address(interface_t *i, ipv4_addr_t addr, uint8_t mask);
 void interface_dump_netprop(interface_t *i);
 void interface_enable_l2_mode(interface_t *i, interface_mode_t mode);
 bool interface_add_l2_vlan_membership(interface_t *i, uint16_t vlan_id);
 void interface_clear_l2_vlan_memberships(interface_t *i);
+bool interface_test_vlan_membership(interface_t *i, uint16_t vlan_id);
 
 #pragma mark -
 

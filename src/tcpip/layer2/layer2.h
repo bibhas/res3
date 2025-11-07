@@ -24,11 +24,13 @@ struct __PACK__ ether_hdr_t {
   uint16_t type;
 };
 
+#define ETHER_HDR_VLAN_TAGGED(HDR) (ether_hdr_read_type((HDR)) == ETHER_TYPE_VLAN)
+
 // Precondition: Enough headroom in front of `pkt` to fit a `ether_hdr_t`
 ether_hdr_t* ether_hdr_alloc_with_payload(uint8_t *pkt, uint32_t pktlen);
 // Precondition: Enough headroom in front of `hdr` to fit a `vlan_tag_t`
-ether_hdr_t* ether_hdr_tag_vlan(ether_hdr_t *hdr, uint32_t len, uint16_t vlanid, uint32_t *newlen);
-ether_hdr_t* ether_hdr_untag_vlan(ether_hdr_t *hdr, uint32_t len, uint32_t *newlen);
+ether_hdr_t* ether_hdr_tag_vlan(ether_hdr_t *hdr, uint32_t len, uint16_t vlanid, uint32_t *newlen=nullptr);
+ether_hdr_t* ether_hdr_untag_vlan(ether_hdr_t *hdr, uint32_t len, uint32_t *newlen=nullptr);
 
 #pragma mark -
 

@@ -40,12 +40,7 @@ bool node_set_interface_ipv4_address(node_t *n, const char *intf, const char *ad
   ipv4_addr_t addr = {0};
   bool resp = ipv4_addr_try_parse(addrstr, &addr);
   EXPECT_RETURN_BOOL(resp == true, "ipv4_addr_try_parse failed", false);
-  candidate->netprop.ip = {
-    .configured = true,
-    .addr = addr,
-    .mask = mask
-  };
-  candidate->netprop.mode = INTF_MODE_UNKNOWN;
+  interface_assign_ip_address(candidate, addr, mask);
   return true;
 }
 
@@ -55,14 +50,13 @@ bool node_unset_interface_ipv4_address(node_t *n, const char *intf) {
   // Find interface
   interface_t *candidate = node_get_interface_by_name(n, intf);
   EXPECT_RETURN_BOOL(candidate != nullptr, "node_get_interface_by_name failed", false);
-  // Parse address string
   ipv4_addr_t addr = {0};
   candidate->netprop.ip = {
     .configured = false,
     .addr = addr,
     .mask = 0
   };
-  candidate->netprop.mode = INTF_MODE_L2_ACCESS;
+  candidate->netprop.mode = INTF_MODE_UNKNOWN;
   return true;
 }
 
@@ -132,6 +126,16 @@ bool interface_assign_mac_address(interface_t *intf, const char *addrstr) {
   int resp = mac_addr_try_parse(addrstr, &intf->netprop.mac_addr);
   EXPECT_RETURN_BOOL(resp == true, "mac_addr_try_parse failed", false);
   return true;
+}
+
+void interface_assign_ip_address(interface_t *intf, ipv4_addr_t addr, uint8_t mask) {
+  EXPECT_RETURN(intf != nullptr, "Empty interface param");
+  interface_enable_l2_mode(intf, INTF_MODE_UNKNOWN); // Clears L2 related fields
+  intf->netprop.ip = {
+    .configured = true,
+    .addr = addr,
+    .mask = mask
+  };
 }
 
 void interface_dump_netprop(interface_t *intf) {
@@ -251,6 +255,29 @@ bool interface_add_l2_vlan_membership(interface_t *intf, uint16_t vlan_id) {
 void interface_clear_l2_vlan_memberships(interface_t *intf) {
   EXPECT_RETURN(intf != nullptr, "Empty interface param");
   memset((void *)intf->netprop.vlan_memberships, 0, sizeof(uint8_t) * CONFIG_MAX_VLAN_PER_INTF);
+}
+
+bool interface_test_vlan_membership(interface_t *intf, uint16_t vlan_id) {
+  EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface param", false);
+  if (INTF_IS_L3_MODE(intf)) {
+    return false;
+  }
+  switch (INTF_MODE(intf)) {
+    case INTF_MODE_UNKNOWN: {
+      return false;
+    }
+    case INTF_MODE_L2_ACCESS: {
+      return intf->netprop.vlan_memberships[0] == vlan_id;
+    }
+    case INTF_MODE_L2_TRUNK: {
+      for (int i = 0; i < CONFIG_MAX_VLAN_PER_INTF; i++) {
+        if (intf->netprop.vlan_memberships[i] == vlan_id) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
 }
 
 #pragma mark -

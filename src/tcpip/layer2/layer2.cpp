@@ -30,7 +30,9 @@ ether_hdr_t* ether_hdr_tag_vlan(ether_hdr_t *hdr, uint32_t len, uint16_t vlanid,
   // First, check if frame is tagged
   if (ether_hdr_read_type(hdr) == ETHER_TYPE_VLAN) {
     // No need to do anything
-    *newlen = len;
+    if (newlen) {
+      *newlen = len;
+    }
     return hdr;
   }
   // Allocate a dedicated static temp buffer for vlan tagging
@@ -58,7 +60,9 @@ ether_hdr_t* ether_hdr_tag_vlan(ether_hdr_t *hdr, uint32_t len, uint16_t vlanid,
   // Set frame type to VLAN
   ether_hdr_set_type(new_hdr, ETHER_TYPE_VLAN);
   // And, we're done
-  *newlen = len + sizeof(vlan_tag_t);
+  if (newlen) {
+    *newlen = len + sizeof(vlan_tag_t);
+  }
   return new_hdr;
 }
 
@@ -104,6 +108,11 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
   EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface param", false);
   EXPECT_RETURN_BOOL(ethhdr != nullptr, "Empty ethernet header param", false);
   if (INTF_IS_L3_MODE(intf)) {
+    if (ETHER_HDR_VLAN_TAGGED(ethhdr)) {
+      // We won't accept any VLAN tagged frames in L3 mode.
+      // This is to separate the broadcast domain from spilling over.
+      return false; 
+    }
     // We will only respond if the frame is specially intended for this
     // interface (based on the dest MAC) or it's a broadcast MAC address.
     mac_addr_t dst_mac = ether_hdr_read_dst_mac(ethhdr);
@@ -112,8 +121,41 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
     }
   }
   else if (INTF_IS_L2_MODE(intf)) {
-    // This interface is operating in L2 mode
-    return true; // Accept all frames
+    if (INTF_MODE(intf) == INTF_MODE_L2_ACCESS) {
+      if (intf->netprop.vlan_memberships[0] == 0) {
+        // No assigned VLAN memberships for this interface: drop frame
+        return false;
+      }
+      if (ETHER_HDR_VLAN_TAGGED(ethhdr)) {
+        // We're dealing with a tagged frame
+        vlan_tag_t *tag = (vlan_tag_t *)(ethhdr + 1);
+        if (!interface_test_vlan_membership(intf, vlan_tag_read_vlan_id(tag))) {
+          return false; // tag VLAN id does not match interface's VLAN
+        }
+      }
+      else {
+        // We're dealing with an untagged frame
+      }
+    }
+    else if (INTF_MODE(intf) == INTF_MODE_L2_TRUNK) {
+      if (!ETHER_HDR_VLAN_TAGGED(ethhdr)) {
+        // TRUNK interfaces must reject all untagged frames
+        // regardless of interface VLAN membership(s)
+        return false;
+      }
+      // We're dealing with a tagged frame
+      vlan_tag_t *tag = (vlan_tag_t *)(ethhdr + 1);
+      if (!interface_test_vlan_membership(intf, vlan_tag_read_vlan_id(tag))) {
+        return false; // tag VLAN id does not match interface's VLAN(s)
+      }
+    }
+    return true; // Accept 
+  }
+  else if (INTF_MODE(intf) == INTF_MODE_UNKNOWN) {
+    // Interface is neither configuered for L3 nor
+    // is it configured for L2 (ACCESS OR TRUNK).
+    // Reject all ingress frames.
+    return false;
   }
   return false; // Rejected
 }
