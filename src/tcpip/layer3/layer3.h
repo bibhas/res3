@@ -2,8 +2,16 @@
 
 #pragma once
 
+#include <cstdint>
 #include <arpa/inet.h>
 #include "utils.h"
+
+typedef struct node_t node_t;
+typedef struct interface_t interface_t;
+
+#pragma mark -
+
+// IPv4
 
 typedef struct ipv4_hdr_t ipv4_hdr_t;
 
@@ -19,6 +27,16 @@ struct __PACK__ ipv4_hdr_t {
   uint32_t  src_addr;
   uint32_t  dst_addr;
 };
+
+#pragma mark -
+
+// Layer 3
+
+int layer3_promote(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t pktlen, uint16_t hdr_type);
+
+#pragma mark -
+
+// Accessors for ipv4_hdr_t
 
 static inline uint8_t ipv4_hdr_read_version(ipv4_hdr_t *hdr) {
   return (hdr->version_ihl >> 4) & 0xF;
@@ -111,3 +129,4 @@ static inline void ipv4_hdr_set_dst_addr(ipv4_hdr_t *hdr, uint32_t addr) {
 static inline void ipv4_hdr_set_dst_addr(ipv4_hdr_t *hdr, ipv4_addr_t *addr) {
   hdr->dst_addr = htonl(addr->value);
 }
+

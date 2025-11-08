@@ -2,6 +2,7 @@
 
 #include <arpa/inet.h>
 #include "layer2.h"
+#include "layer3/layer3.h"
 #include "phy.h"
 
 int layer2_switch_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen);
@@ -173,6 +174,38 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
 
 // Layer 2 I/O
 
+int layer2_promote(node_t *n, interface_t *intf, ether_hdr_t *ether_hdr, uint32_t framelen) {
+  uint16_t hdr_type = ether_hdr_read_type(ether_hdr);
+  // Check if it's an ARP message
+  if (hdr_type == ETHER_TYPE_ARP) {
+    arp_hdr_t *arp_hdr = (arp_hdr_t *)(ether_hdr + 1);
+    uint16_t arp_op_code = arp_hdr_read_op_code(arp_hdr);
+    switch (arp_op_code) {
+      case ARP_OP_CODE_REQUEST: {
+        bool resp = node_arp_recv_broadcast_request_frame(n, intf, ether_hdr);
+        EXPECT_RETURN_VAL(resp == true, "node_arp_recv_broadcast_request_frame failed", -1);
+        return framelen;
+      }
+      case ARP_OP_CODE_REPLY: {
+        bool resp = node_arp_recv_reply_frame(n, intf, ether_hdr);
+        EXPECT_RETURN_VAL(resp == true, "node_arp_recv_reply_frame failed", -1);
+        return framelen;
+      }
+      default: {
+        printf("Unknown ARP op code received! Ignoring...\n");
+        return -1;
+      }
+    }
+  }
+  else {
+    // TODO: We need to delegate processing of this frame to L3
+    uint8_t *pkt = (uint8_t *)(ether_hdr + 1);
+    uint32_t pktlen = framelen - sizeof(ether_hdr_t); // We ignore FCS
+    return layer3_promote(n, intf, pkt, pktlen, hdr_type);
+  }
+  return -1;
+}
+
 int layer2_node_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen) {
   // Entry point into our TCP/IP stack
   EXPECT_RETURN_VAL(n != nullptr, "Empty node param", -1);
@@ -201,31 +234,7 @@ int layer2_node_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, u
   }
   else if (INTF_IS_L3_MODE(intf)) { 
     // Interface is configured in L3 mode
-    uint16_t hdr_type = ether_hdr_read_type(ether_hdr);
-    // Check if it's an ARP message
-    if (hdr_type == ETHER_TYPE_ARP) {
-      arp_hdr_t *arp_hdr = (arp_hdr_t *)(ether_hdr + 1);
-      uint16_t arp_op_code = arp_hdr_read_op_code(arp_hdr);
-      switch (arp_op_code) {
-        case ARP_OP_CODE_REQUEST: {
-          bool resp = node_arp_recv_broadcast_request_frame(n, intf, ether_hdr);
-          EXPECT_RETURN_VAL(resp == true, "node_arp_recv_broadcast_request_frame failed", -1);
-          return framelen;
-        }
-        case ARP_OP_CODE_REPLY: {
-          bool resp = node_arp_recv_reply_frame(n, intf, ether_hdr);
-          EXPECT_RETURN_VAL(resp == true, "node_arp_recv_reply_frame failed", -1);
-          return framelen;
-        }
-        default: {
-          printf("Unknown ARP op code received! Ignoring...\n");
-          return -1;
-        }
-      }
-    }
-    else {
-      // TODO: We need to delegate processing of this frame to L3
-    }
+    return layer2_promote(n, intf, ether_hdr, framelen);
   }
   // Interface is not in a functional state. 
   // Silently drop igress frames.
