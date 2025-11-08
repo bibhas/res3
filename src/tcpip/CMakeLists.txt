@@ -9,6 +9,7 @@ set(common_sources
   "layer2/arp.cpp"
   "layer2/mac.cpp"
   "layer3/layer3.cpp"
+  "layer3/rt.cpp"
 )
 
 utils_add_interface_library(tcpip_base

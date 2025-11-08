@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <arpa/inet.h>
 #include "utils.h"
+#include "rt.h"
 
 typedef struct node_t node_t;
 typedef struct interface_t interface_t;
