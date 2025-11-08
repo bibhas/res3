@@ -10,7 +10,7 @@ typedef struct rt_t rt_t;
 typedef struct rt_entry_t rt_entry_t;
 typedef struct interface_t interface_t;
 
-struct rt_t_ {
+struct rt_t {
   glthread_t rt_entries;
 };
 
@@ -31,8 +31,10 @@ DEFINE_GLTHREAD_TO_STRUCT_FUNC(
   rt_glue                         // glthread_t field in rt_t
 );
 
-void rt_init(rt_t *t);
+void rt_init(rt_t **t);
 bool rt_add_direct_route(rt_t *t, ipv4_addr_t *addr, uint8_t mask);
 bool rt_add_route(rt_t *t, ipv4_addr_t *addr, uint8_t mask, ipv4_addr_t *gw_addr, interface_t *ointf);
 void rt_dump(rt_t *t);
+
+
 
