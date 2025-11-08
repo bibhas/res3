@@ -14,7 +14,7 @@ utils_add_interface_library(tcpip_base
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}
            "${CMAKE_CURRENT_SOURCE_DIR}/layer2"
   SOURCES ${common_sources} 
-  CFLAGS "-DVERBOSE" "-mssse3"
+  CFLAGS "-DVERBOSE" #"-mssse3"
   LINKS libcli
 )
 

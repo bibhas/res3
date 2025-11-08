@@ -22,7 +22,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(IBVERBS REQUIRED libibverbs)
 pkg_check_modules(DPDK REQUIRED libdpdk>=25.07)
 
-add_compile_options(-march=native) # Required for sse3 etc.
+#add_compile_options(-march=native) # Required for sse3 etc.
 
 add_subdirectory("src")
 
