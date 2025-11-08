@@ -22,7 +22,10 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(IBVERBS REQUIRED libibverbs)
 pkg_check_modules(DPDK REQUIRED libdpdk>=25.07)
 
-#add_compile_options(-march=native) # Required for sse3 etc.
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
+  message(STATUS "Detected x86_64 architecture — enabling Intel-specific flags")
+  add_compile_options(-march=native -msse3)
+endif()
 
 add_subdirectory("src")
 
