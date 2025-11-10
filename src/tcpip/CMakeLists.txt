@@ -50,3 +50,14 @@ utils_add_executable(pcaptest
   EXTENDS tcpip_base
   SOURCES "tests/pcaptest.cpp" 
 )
+
+# Copy cmds.txt to binary dir (to use with $ `config load cmds.txt`)
+add_custom_command(
+  OUTPUT ${CMAKE_BINARY_DIR}/cmds.txt
+  COMMAND ${CMAKE_COMMAND} -E copy
+          ${CMAKE_CURRENT_SOURCE_DIR}/tests/cmds.txt
+          ${CMAKE_BINARY_DIR}/cmds.txt
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/cmds.txt
+)
+
+add_custom_target(copy_cmds ALL DEPENDS ${CMAKE_BINARY_DIR}/cmds.txt)
