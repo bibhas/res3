@@ -29,6 +29,10 @@ struct __PACK__ ipv4_hdr_t {
   uint32_t  dst_addr;
 };
 
+#define IPV4_HDR_LEN_BYTES(HDRPTR) (ipv4_hdr_read_ihl(HDRPTR) * 4)
+#define IPV4_HDR_PAYLOAD_SIZE(HDRPTR) (HDRPTR) \
+  ipv4_hdr_read_total_length(HDRPTR) - IPV4_HDR_LEN_BYTES(HDRPTR) 
+
 #pragma mark -
 
 // Layer 3
