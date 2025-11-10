@@ -66,7 +66,7 @@ bool __ipv4_addr_str_apply_mask(const char *prefix, uint8_t mask, uint32_t *out)
   // Next, convert host to network byte order
   uint32_t n_value = htonl(src);
   // Mask off first `mask` bits of n_value
-  *out = ntohl(n_value & (((2 << mask) - 1) << (32 - mask)));
+  *out = ntohl(n_value & ((uint32_t)(((uint64_t)1 << mask) - 1) << (32 - mask)));
   return true;
 }
 
@@ -74,7 +74,7 @@ bool ipv4_addr_apply_mask(ipv4_addr_t *prefix, uint8_t mask, ipv4_addr_t *out) {
   // Sanity check
   EXPECT_RETURN_BOOL(prefix != nullptr, "Empty prefix param", false);
   EXPECT_RETURN_BOOL(out != nullptr, "Empty out ptr param", false);
-  out->value = ntohl(htonl(prefix->value) & (((2 << mask) - 1) << (32 - mask)));
+  out->value = ntohl(htonl(prefix->value) & ((uint32_t)(((uint64_t)1 << mask) - 1) << (32 - mask)));
   return true;
 }
 
@@ -109,6 +109,7 @@ bool __ipv4_addr_str_try_parse_host(const char *addrstr, uint32_t *out) {
   int mult = 1;   // Decimal multiplier (1, 10, 100)
   int digits = 0; // Digits in current octet
   int bytes = 3;  // Bytes to process
+  int octets = 0;
   // Traverse the string from right-to-left
   for (int i = strlen(addrstr) - 1; i >= 0; i--) {
     char c = addrstr[i];
@@ -127,6 +128,7 @@ bool __ipv4_addr_str_try_parse_host(const char *addrstr, uint32_t *out) {
       acc = 0;    // Reset accumulator for next octet
       mult = 1;   // Reset decimal multiplier for next octet
       digits = 0; // Reset digit counter for next octet
+      octets++;
     }
     else if (c >= '0' && c <= '9') {
       acc += (c - '0') * mult; 
@@ -147,6 +149,11 @@ bool __ipv4_addr_str_try_parse_host(const char *addrstr, uint32_t *out) {
   EXPECT_RETURN_BOOL(acc <= 255, "Octet overflow", false);
   EXPECT_RETURN_BOOL(bytes >= 0, "More than three periods", false);
   resp.bytes[0] = acc;
+  octets++;
+  // Make sure we got four octets
+  if (octets != 4) {
+    return false;
+  }
   // Fill the return value
   *out = resp.value;
   // And, we're done
