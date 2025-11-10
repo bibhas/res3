@@ -10,7 +10,7 @@
 
 int main(int argc, const char **argv) {
   setvbuf(stdout, NULL, _IOLBF, 0); // Disable buffering (for now, remove TODO)
-  graph_t *topo = graph_create_dual_switch_topology();
+  graph_t *topo = graph_create_three_node_ring_topology();
   // Setup CLI
   cli_init();
   // Create graph

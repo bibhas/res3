@@ -1,5 +1,7 @@
 // cli.cpp
 
+#include <cstdlib>
+#include <climits>
 #include <CommandParser/libcli.h>
 #include <CommandParser/cmdtlv.h>
 #include "utils.h"
@@ -10,6 +12,7 @@
 #define CLI_CMD_CODE_SHOW_NODE_ARP 3
 #define CLI_CMD_CODE_SHOW_NODE_MAC 4
 #define CLI_CMD_CODE_SHOW_NODE_RT 5
+#define CLI_CMD_CODE_CONFIG_NODE_ROUTE 5
 
 static graph_t *__topology = nullptr;
 
@@ -118,9 +121,69 @@ int show_rt_callback_handler(param_t *p, ser_buff_t *tlvs, op_mode mode) {
   return 0;
 }
 
+int config_node_route_callback_handler(param_t *p, ser_buff_t *tlvs, op_mode mode) {
+  int code = EXTRACT_CMD_CODE(tlvs);
+  EXPECT_RETURN_VAL(code == CLI_CMD_CODE_CONFIG_NODE_ROUTE, "Incorrect CMD code", -1);
+  if (!__topology) {
+    dump_line("No topology to config!\n");
+    return -1; // TODO: return better error code
+  }
+  // Parse out the node name and ip address
+  tlv_struct_t *tlv = nullptr;
+  char *node_name = nullptr; 
+  char *dst_ip_addr_str = nullptr;
+  char *dst_mask_str = nullptr;
+  char *gw_ip_addr_str = nullptr;
+  char *oif_name = nullptr;
+  TLV_FOREACH_BEGIN(tlvs, tlv) {
+    if (strncmp(tlv->leaf_id, "node-name", strlen("node-name")) == 0) {
+      node_name = tlv->value;
+    }
+    if (strncmp(tlv->leaf_id, "dst-ip-address", strlen("dst-ip-address")) == 0) {
+      dst_ip_addr_str = tlv->value;
+    }
+    if (strncmp(tlv->leaf_id, "dst-mask", strlen("dst-mask")) == 0) {
+      dst_mask_str = tlv->value;
+    }
+    if (strncmp(tlv->leaf_id, "gw-ip-addr", strlen("gw-ip-addr")) == 0) {
+      gw_ip_addr_str = tlv->value;
+    }
+    if (strncmp(tlv->leaf_id, "oif-name", strlen("oif-name")) == 0) {
+      oif_name = tlv->value;
+    }
+  } 
+  TLV_FOREACH_END();
+  EXPECT_RETURN_VAL(node_name != nullptr, "Couldn't parse node name", -1);
+  EXPECT_RETURN_VAL(dst_ip_addr_str != nullptr, "Couldn't parse destination ip", -1);
+  EXPECT_RETURN_VAL(dst_mask_str != nullptr, "Couldn't destination mask", -1);
+  EXPECT_RETURN_VAL(gw_ip_addr_str != nullptr, "Couldn't parse gateway ip", -1);
+  EXPECT_RETURN_VAL(oif_name != nullptr, "Couldn't parse outgoing interface name", -1);
+  // Parse addresses into ipv4_addr_t
+  ipv4_addr_t dst_ip_addr;
+  bool resp = ipv4_addr_try_parse(dst_ip_addr_str, &dst_ip_addr);
+  EXPECT_RETURN_VAL(resp == true, "ipv4_addr_try_parse failed", -1);
+  ipv4_addr_t gw_ip_addr;
+  resp = ipv4_addr_try_parse(gw_ip_addr_str, &gw_ip_addr);
+  EXPECT_RETURN_VAL(resp == true, "ipv4_addr_try_parse failed", -1);
+  // Parse mask value
+  uint8_t dst_mask = strtol(dst_mask_str, nullptr, 10); // base 10
+  EXPECT_RETURN_VAL(dst_mask != 0, "strol failed", -1);
+  // Find node
+  node_t *node = graph_find_node_by_name(__topology, node_name);
+  EXPECT_RETURN_VAL(node != nullptr, "graph_find_node_by_name failed", -1);
+  // Find interface
+  interface_t *oif = node_get_interface_by_name(node, oif_name);
+  EXPECT_RETURN_VAL(oif != nullptr, "node_get_interface_by_name failed", -1);
+  // Add route
+  resp = rt_add_route(node->netprop.r_table, &dst_ip_addr, dst_mask, &gw_ip_addr, oif);
+  EXPECT_RETURN_VAL(resp == true, "rt_add_route failed", -1);
+  printf("Route added!\n");
+  return 0;
+}
+
 int validate_ip_address(char *value) {
-  printf("TODO: Implement ip address validation...\n");
-  return VALIDATION_SUCCESS;
+  ipv4_addr_t out;
+  return ipv4_addr_try_parse(value, &out) ? VALIDATION_SUCCESS : VALIDATION_FAILED;
 }
 
 int run_node_resolve_arp_callback(param_t *p, ser_buff_t *tlvs, op_mode mode) {
@@ -218,6 +281,44 @@ void cli_init() {
           init_param(&ip_address, LEAF, nullptr, run_node_resolve_arp_callback, validate_ip_address, STRING, "ip-address", "Help : IP address");
           libcli_register_param(&resolve_arp, &ip_address);
           set_param_cmd_code(&ip_address, CLI_CMD_CODE_RUN_NODE_RESOLVE_ARP);
+        }
+      }
+    }
+  }
+  param_t *config = libcli_get_config_hook();
+  // Setup `config node <node-name> route <dest> <mask> <gw-ip> <oif-name>`
+  {
+    static param_t node;
+    init_param(&node, CMD, "node", nullptr, nullptr, INVALID, nullptr, "Help : node");
+    libcli_register_param(config, &node);
+    {
+      static param_t node_name;
+      init_param(&node_name, LEAF, nullptr, nullptr, validate_node_name, STRING, "node-name", "Help : Node name");
+      libcli_register_param(&node, &node_name);
+      {
+        static param_t route;
+        init_param(&route, CMD, "route", nullptr, nullptr, INVALID, nullptr, "Help : route");
+        libcli_register_param(&node_name, &route);
+        {
+          static param_t dst;
+          init_param(&dst, LEAF, nullptr, nullptr, validate_ip_address, STRING, "dst-ip-address", "Help : Destination IP address");
+          libcli_register_param(&route, &dst);
+          {
+            static param_t mask;
+            init_param(&mask, LEAF, nullptr, nullptr, nullptr, INT, "dst-mask", "Help : Destination Network Mask");
+            libcli_register_param(&dst, &mask);
+            {
+              static param_t gw;
+              init_param(&gw, LEAF, nullptr, nullptr, validate_ip_address, STRING, "gw-ip-address", "Help : Gateway IP address");
+              libcli_register_param(&mask, &gw);
+              {
+                static param_t oif;
+                init_param(&oif, LEAF, nullptr, config_node_route_callback_handler, nullptr, STRING, "oif-name", "Help : Outgoing Network Interface");
+                libcli_register_param(&gw, &oif);
+                set_param_cmd_code(&oif, CLI_CMD_CODE_CONFIG_NODE_ROUTE);
+              }
+            }
+          }
         }
       }
     }
