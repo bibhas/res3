@@ -41,6 +41,44 @@ bool rt_add_route(rt_t *t, ipv4_addr_t *addr, uint8_t mask, ipv4_addr_t *gw_ip, 
   return true;
 }
 
+bool rt_delete_entry(rt_t *t, ipv4_addr_t *addr, uint8_t mask) {
+  EXPECT_RETURN_BOOL(t != nullptr, "Empty rt param", false);
+  EXPECT_RETURN_BOOL(addr != nullptr, "Empty destination ip address param", false);
+  glthread_t *curr = nullptr;
+  GLTHREAD_FOREACH_BEGIN(&t->rt_entries, curr) {
+    rt_entry_t *entry = rt_entry_ptr_from_rt_glue(curr);
+    if (!IPV4_ADDR_PTR_IS_EQUAL(&entry->prefix.ip, addr)) {
+      continue;
+    }
+    if (entry->prefix.mask != mask) {
+      continue;
+    }
+    // This is ok to do since curr is never the head of the thread (the
+    // glthread_t instance held by the owner).
+    bool resp = glthread_remove(curr);
+    EXPECT_RETURN_BOOL(resp == true, "glthread_remove failed", false);
+    free(entry);
+    return true;
+  }
+  GLTHREAD_FOREACH_END();
+  return false; // Didn't find entry
+}
+
+bool rt_clear(rt_t *t) {
+  EXPECT_RETURN_BOOL(t != nullptr, "Empty rt param", false);
+  glthread_t *curr = nullptr;
+  GLTHREAD_FOREACH_BEGIN(&t->rt_entries, curr) {
+    rt_entry_t *entry = rt_entry_ptr_from_rt_glue(curr); 
+    // This is ok to do since curr is never the head of the thread (the
+    // glthread_t instance held by the owner).
+    bool resp = glthread_remove(curr);
+    EXPECT_RETURN_BOOL(resp == true, "glthread_remove failed", false);
+    free(entry);
+  }
+  GLTHREAD_FOREACH_END();
+  return true; // All entries deleted
+}
+
 void rt_dump(rt_t *t) {
   EXPECT_RETURN(t != nullptr, "Empty rt param");
   glthread_t *curr = nullptr;

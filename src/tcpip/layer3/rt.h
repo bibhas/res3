@@ -34,6 +34,8 @@ DEFINE_GLTHREAD_TO_STRUCT_FUNC(
 void rt_init(rt_t **t);
 bool rt_add_direct_route(rt_t *t, ipv4_addr_t *addr, uint8_t mask);
 bool rt_add_route(rt_t *t, ipv4_addr_t *addr, uint8_t mask, ipv4_addr_t *gw_addr, interface_t *ointf);
+bool rt_delete_entry(rt_t *t, ipv4_addr_t *addr, uint8_t mask);
+bool rt_clear(rt_t *t);
 void rt_dump(rt_t *t);
 
 
