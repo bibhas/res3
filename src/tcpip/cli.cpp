@@ -174,6 +174,7 @@ int config_node_route_callback_handler(param_t *p, ser_buff_t *tlvs, op_mode mod
   // Find interface
   interface_t *oif = node_get_interface_by_name(node, oif_name);
   EXPECT_RETURN_VAL(oif != nullptr, "node_get_interface_by_name failed", -1);
+  EXPECT_RETURN_VAL(INTF_IS_L3_MODE(oif) == true, "Provided interface argument is not in L3 mode!", -1);
   // Add route
   resp = rt_add_route(node->netprop.r_table, &dst_ip_addr, dst_mask, &gw_ip_addr, oif);
   EXPECT_RETURN_VAL(resp == true, "rt_add_route failed", -1);
