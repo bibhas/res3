@@ -14,6 +14,7 @@ void node_netprop_init(node_netprop_t *prop) {
   prop->loopback.addr.value = 0;
   arp_table_init(&prop->arp_table);
   mac_table_init(&prop->mac_table);
+  rt_init(&prop->r_table);
 }
 
 bool node_set_loopback_address(node_t *n, const char *addrstr) {
@@ -26,6 +27,9 @@ bool node_set_loopback_address(node_t *n, const char *addrstr) {
   // We could've passed addr directly to the parsing function, but didn't, for
   // the sake of readability.
   n->netprop.loopback.addr = addr;
+  // Update rt
+  resp = rt_add_direct_route(n->netprop.r_table, &addr, 32);
+  EXPECT_RETURN_BOOL(resp == true, "rt_add_direct_route failed", false);
   return true;
 }
 
@@ -41,6 +45,8 @@ bool node_set_interface_ipv4_address(node_t *n, const char *intf, const char *ad
   bool resp = ipv4_addr_try_parse(addrstr, &addr);
   EXPECT_RETURN_BOOL(resp == true, "ipv4_addr_try_parse failed", false);
   interface_assign_ip_address(candidate, addr, mask);
+  // Update rt
+  resp = rt_add_direct_route(n->netprop.r_table, &addr, mask);
   return true;
 }
 

@@ -6,6 +6,7 @@
 #include "utils.h"
 #include "layer2/arp.h"
 #include "layer2/mac.h"
+#include "layer3/rt.h"
 
 // Forward declarations
 
@@ -24,6 +25,7 @@ struct node_netprop_t {
   arp_table_t *arp_table = nullptr;
   mac_table_t *mac_table = nullptr;
   // L3 properties 
+  rt_t *r_table = nullptr;
   struct {
     bool configured;
     ipv4_addr_t addr;
