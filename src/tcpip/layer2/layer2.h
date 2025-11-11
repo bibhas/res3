@@ -37,6 +37,8 @@ ether_hdr_t* ether_hdr_untag_vlan(ether_hdr_t *hdr, uint32_t len, uint32_t *newl
 // Layer 2 processing
 
 int layer2_promote(node_t *n, interface_t *intf, ether_hdr_t *ether_hdr, uint32_t framelen);
+void layer2_demote(node_t *n, interface_t *intf, uint8_t *payload, uint32_t app_size, uint16_t prot);
+
 bool layer2_qualify_recv_frame_on_interface(interface_t *i, ether_hdr_t *hdr, uint16_t *vlan_id);
 bool layer2_qualify_send_frame_on_interface(interface_t *intf, ether_hdr_t *ethhdr);
 int layer2_node_recv_frame_bytes(node_t *n, interface_t *i, uint8_t *frame, uint32_t framelen);

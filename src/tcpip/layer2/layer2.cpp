@@ -124,11 +124,11 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
     }
   }
   else if (INTF_IS_L2_MODE(intf)) {
+    if (intf->netprop.vlan_memberships[0] == 0) {
+      // No assigned VLAN memberships for this interface: drop frame
+      return false;
+    }
     if (INTF_MODE(intf) == INTF_MODE_L2_ACCESS) {
-      if (intf->netprop.vlan_memberships[0] == 0) {
-        // No assigned VLAN memberships for this interface: drop frame
-        return false;
-      }
       if (ETHER_HDR_VLAN_TAGGED(ethhdr)) {
         // We're dealing with a tagged frame
         vlan_tag_t *tag = (vlan_tag_t *)(ethhdr + 1);
@@ -201,9 +201,14 @@ int layer2_promote(node_t *n, interface_t *intf, ether_hdr_t *ether_hdr, uint32_
     // TODO: We need to delegate processing of this frame to L3
     uint8_t *pkt = (uint8_t *)(ether_hdr + 1);
     uint32_t pktlen = framelen - sizeof(ether_hdr_t); // We ignore FCS
-    return layer3_promote(n, intf, pkt, pktlen, hdr_type);
+    layer3_promote(n, intf, pkt, pktlen, hdr_type);
+    return framelen;
   }
   return -1;
+}
+
+void layer2_demote(node_t *n, interface_t *intf, uint8_t *payload, uint32_t app_size, uint16_t prot) {
+  
 }
 
 int layer2_node_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen) {
