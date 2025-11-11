@@ -4,6 +4,7 @@
 #include <climits>
 #include <CommandParser/libcli.h>
 #include <CommandParser/cmdtlv.h>
+#include "layer5/layer5.h"
 #include "utils.h"
 #include "cli.h"
 
@@ -13,6 +14,7 @@
 #define CLI_CMD_CODE_SHOW_NODE_MAC 4
 #define CLI_CMD_CODE_SHOW_NODE_RT 5
 #define CLI_CMD_CODE_CONFIG_NODE_ROUTE 5
+#define CLI_CMD_CODE_RUN_NODE_PING 6
 
 static graph_t *__topology = nullptr;
 
@@ -222,6 +224,37 @@ int run_node_resolve_arp_callback(param_t *p, ser_buff_t *tlvs, op_mode mode) {
   return 0;
 }
 
+int run_node_ping_callback(param_t *p, ser_buff_t *tlvs, op_mode mode) {
+  int code = EXTRACT_CMD_CODE(tlvs);
+  EXPECT_RETURN_VAL(code == CLI_CMD_CODE_RUN_NODE_PING, "Incorrect CMD code", -1);
+  // Parse out the node name and ip address
+  tlv_struct_t *tlv = nullptr;
+  char *node_name = nullptr; 
+  char *ip_addr_str = nullptr;
+  TLV_FOREACH_BEGIN(tlvs, tlv) {
+    if (strncmp(tlv->leaf_id, "node-name", strlen("node-name")) == 0) {
+      node_name = tlv->value;
+    }
+    else if (strncmp(tlv->leaf_id, "ip-address", strlen("ip-address")) == 0) {
+      ip_addr_str = tlv->value;
+    }
+  } 
+  TLV_FOREACH_END();
+  EXPECT_RETURN_VAL(node_name != nullptr, "Couldn't parse node name", -1);
+  EXPECT_RETURN_VAL(ip_addr_str != nullptr, "Couldn't parse ip address", -1);
+  // Parse ip address into ipv4_addr_t
+  ipv4_addr_t ip_addr;
+  bool resp = ipv4_addr_try_parse(ip_addr_str, &ip_addr);
+  EXPECT_RETURN_VAL(resp == true, "ipv4_addr_try_parse failed", -1);
+  // Find node
+  node_t *node = graph_find_node_by_name(__topology, node_name);
+  EXPECT_RETURN_VAL(node != nullptr, "graph_find_node_by_name failed", -1);
+  // Perform ping
+  resp = layer5_perform_ping(node, &ip_addr);
+  EXPECT_RETURN_VAL(resp == true, "layer5_perform_ping failed", -1); 
+  return 0;
+}
+
 void cli_init() {
   // Initializes libcli
   init_libcli();
@@ -273,6 +306,7 @@ void cli_init() {
       static param_t node_name;
       init_param(&node_name, LEAF, nullptr, nullptr, validate_node_name, STRING, "node-name", "Help : Node name");
       libcli_register_param(&node, &node_name);
+      // resolve-arp
       {
         static param_t resolve_arp;
         init_param(&resolve_arp, CMD, "resolve-arp", nullptr, nullptr, INVALID, nullptr, "Help : resolve-arp");
@@ -284,6 +318,19 @@ void cli_init() {
           set_param_cmd_code(&ip_address, CLI_CMD_CODE_RUN_NODE_RESOLVE_ARP);
         }
       }
+      // ping
+      {
+        static param_t ping;
+        init_param(&ping, CMD, "ping", nullptr, nullptr, INVALID, nullptr, "Help : ping");
+        libcli_register_param(&node_name, &ping);
+        {
+          static param_t ip_address;
+          init_param(&ip_address, LEAF, nullptr, run_node_ping_callback, validate_ip_address, STRING, "ip-address", "Help : IP address");
+          libcli_register_param(&ping, &ip_address);
+          set_param_cmd_code(&ip_address, CLI_CMD_CODE_RUN_NODE_PING);
+        }
+      }
+
     }
   }
   param_t *config = libcli_get_config_hook();
