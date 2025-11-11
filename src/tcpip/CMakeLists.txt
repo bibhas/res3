@@ -51,6 +51,7 @@ utils_add_executable(tests
           "layer2/tests/layer2tests.cpp"
           # Layer 3
           "layer3/tests/lpmtests.cpp"
+          "layer3/tests/layer3tests.cpp"
 )
 
 utils_add_executable(pcaptest

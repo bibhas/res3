@@ -3,6 +3,7 @@
 #include "catch2.hpp"
 #include "net.h"
 #include "graph.h"
+#include "topo.h"
 
 TEST_CASE("node_get_interface_matching_subnet - basic match", "[net][subnet]") {
   // Create a topology
@@ -281,4 +282,48 @@ TEST_CASE("node_get_interface_matching_subnet - network address", "[net][subnet]
   // Should match since it's in the subnet
   REQUIRE(result == true);
   REQUIRE(found_intf != nullptr);
+}
+
+TEST_CASE("node_is_local_address", "[net][node]") {
+/*
+ *                        +----------+
+ *               eth0/4   |          |eth0/0
+ *       +----------------+    H0    +------------------+
+ *       |     40.1.1.1/24|          |20.1.1.1/24       |
+ *       |                +----------+                  |
+ *       |                 122.1.1.0                    |
+ *       |                                              |
+ *       |                                              |
+ *       |40.1.1.2/24                                   |20.1.1.2/24
+ *       |eth0/5                                        |eth0/1
+ *   +---+---+                                      +---+----+
+ *   |       |eth0/3                          eth0/2|        |
+ *   |   H2  +--------------------------------------+   H1   |
+ *   |       |30.1.1.2/24            30.1.1.1/24    |        |
+ *   +-------+                                      +--------+
+ *   122.1.1.2                                      122.1.1.1
+ */
+  graph_t *topo = graph_create_three_node_ring_topology();
+  node_t *H0 = graph_find_node_by_name(topo, "H0");
+  // Run tests
+  SECTION("Using neighbor's address should return false") {
+    ipv4_addr_t query {.bytes={30, 1, 1, 2}};
+    bool resp = node_is_local_address(H0, &query); 
+    REQUIRE(resp == false);
+  }
+  SECTION("Using local interface address should return true") {
+    ipv4_addr_t query {.bytes={20, 1, 1, 1}};
+    bool resp = node_is_local_address(H0, &query); 
+    REQUIRE(resp == true);
+  }
+  SECTION("Using a wrong address from local interface subnet should return false") {
+    ipv4_addr_t query {.bytes={20, 1, 1, 2}};
+    bool resp = node_is_local_address(H0, &query); 
+    REQUIRE(resp == false);
+  }
+  SECTION("Using loopback address should return true") {
+    ipv4_addr_t query {.bytes={122, 1, 1, 0}};
+    bool resp = node_is_local_address(H0, &query); 
+    REQUIRE(resp == true);
+  }
 }

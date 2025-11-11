@@ -98,6 +98,27 @@ bool node_get_interface_matching_subnet(node_t *n, ipv4_addr_t *addr, interface_
   return false; // Couldn't find
 }
 
+bool node_is_local_address(node_t *node, ipv4_addr_t *addr) {
+  glthread_t *curr = nullptr;
+  // See if any of the local interfaces have this address
+  for (int i = 0; i < CONFIG_MAX_INTF_PER_NODE; i++) {
+    if (!node->intf[i]) { continue; }
+    interface_t *candidate = node->intf[i];
+    if (!INTF_IS_L3_MODE(candidate)) { continue; }
+    if (IPV4_ADDR_PTR_IS_EQUAL(&candidate->netprop.ip.addr, addr)) {
+      return true;
+    }
+  }
+  // If not, check node loopback address
+  if (node->netprop.loopback.configured) {
+    ipv4_addr_t *lb_addr = &node->netprop.loopback.addr;
+    if (IPV4_ADDR_PTR_IS_EQUAL(lb_addr, addr)) {
+      return true;
+    }
+  } 
+  return false;
+}
+
 void node_interface_enable_l2_mode(node_t *n, const char *intf_name, interface_mode_t mode) {
   EXPECT_RETURN(n != nullptr, "Empty node param");
   EXPECT_RETURN(intf_name != nullptr, "Empty interface name param");

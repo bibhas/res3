@@ -197,12 +197,15 @@ int layer2_promote(node_t *n, interface_t *intf, ether_hdr_t *ether_hdr, uint32_
       }
     }
   }
-  else {
-    // TODO: We need to delegate processing of this frame to L3
+  else if (hdr_type == ETHER_TYPE_IPV4) {
+    // We need to delegate processing of this packet to L3
     uint8_t *pkt = (uint8_t *)(ether_hdr + 1);
     uint32_t pktlen = framelen - sizeof(ether_hdr_t); // We ignore FCS
     layer3_promote(n, intf, pkt, pktlen, hdr_type);
     return framelen;
+  }
+  else {
+    ; // Discard
   }
   return -1;
 }
