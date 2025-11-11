@@ -41,6 +41,32 @@ bool rt_add_route(rt_t *t, ipv4_addr_t *addr, uint8_t mask, ipv4_addr_t *gw_ip, 
   return true;
 }
 
+bool rt_lookup(rt_t *t, ipv4_addr_t *addr, rt_entry_t **resp) {
+  EXPECT_RETURN_BOOL(t != nullptr, "Empty table param", false);
+  EXPECT_RETURN_BOOL(addr != nullptr, "Empty address param", false);
+  EXPECT_RETURN_BOOL(resp != nullptr, "Empty resp entry ptr ptr param", false);
+  *resp = nullptr;
+  // TODO: Use a Trie to implement efficient searching
+  uint8_t max_mask = 0;
+  glthread_t *curr = nullptr;
+  GLTHREAD_FOREACH_BEGIN(&t->rt_entries, curr) {
+    rt_entry_t *entry = rt_entry_ptr_from_rt_glue(curr);
+    ipv4_addr_t candidate;
+    if (!ipv4_addr_apply_mask(addr, entry->prefix.mask, &candidate)) {
+      continue; // Something happened, but we'll just ignore it
+    }
+    if (IPV4_ADDR_IS_EQUAL(candidate, entry->prefix.ip)) {
+      if (max_mask < entry->prefix.mask) {
+        max_mask = entry->prefix.mask;
+        *resp = entry;
+      }
+    }
+  }
+  GLTHREAD_FOREACH_END();
+  EXPECT_RETURN_BOOL(*resp != nullptr, "No entry found", false);
+  return true;
+}
+
 bool rt_delete_entry(rt_t *t, ipv4_addr_t *addr, uint8_t mask) {
   EXPECT_RETURN_BOOL(t != nullptr, "Empty rt param", false);
   EXPECT_RETURN_BOOL(addr != nullptr, "Empty destination ip address param", false);

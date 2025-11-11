@@ -5,11 +5,15 @@ set(common_sources
   "phy.cpp"
   "topo.cpp"
   "pcap.cpp"
+  # Layer 2
   "layer2/layer2.cpp"
   "layer2/arp.cpp"
   "layer2/mac.cpp"
+  # Layer 3
   "layer3/layer3.cpp"
   "layer3/rt.cpp"
+  # Layer 5
+  "layer5/layer5.cpp"
 )
 
 utils_add_interface_library(tcpip_base
@@ -42,8 +46,11 @@ utils_add_executable(tests
   SOURCES "tests/tests_main.cpp"
           "tests/nettests.cpp"
           "tests/utiltests.cpp"
+          # Layer 2
           "layer2/tests/arptests.cpp"
           "layer2/tests/layer2tests.cpp"
+          # Layer 3
+          "layer3/tests/lpmtests.cpp"
 )
 
 utils_add_executable(pcaptest
