@@ -211,7 +211,38 @@ int layer2_promote(node_t *n, interface_t *iintf, ether_hdr_t *ether_hdr, uint32
 }
 
 void layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, uint8_t *payload, uint32_t paylen, uint16_t ethertype) {
-  
+  EXPECT_RETURN(n != nullptr, "Empty node param");
+  EXPECT_RETURN(nxt_hop_addr != nullptr, "Empty next hop address param");
+  // We will to handle ointf == nullptr case manually
+  EXPECT_RETURN(n != nullptr, "Empty node param");
+  EXPECT_RETURN(payload != nullptr, "Empty payload ptr param");
+  if (!ointf && node_is_local_address(n, nxt_hop_addr)) {
+    // Self-ping case
+    layer3_promote(n, nullptr, payload, paylen, ethertype);
+    return;
+  }
+  if (!ointf) {
+    // Direct delivery case
+    bool resp = node_get_interface_matching_subnet(n, nxt_hop_addr, &ointf); // <-- Overwrites ointf
+    EXPECT_RETURN(resp == true, "node_get_interface_matching_subnet failed");
+  }
+  // Resolve src and dst mac addresses
+  mac_addr_t *src_mac = INTF_MAC(ointf);
+  EXPECT_RETURN(src_mac != nullptr, "Missing src mac");
+  arp_entry_t *arp_entry = nullptr;
+  bool resp = arp_table_lookup(n->netprop.arp_table, nxt_hop_addr, &arp_entry);
+  EXPECT_RETURN(resp == true, "arp_table_lookup failed");
+  mac_addr_t *dst_mac = &arp_entry->mac_addr;
+  // Tack on ethernet header (precondition: should be enough headroom)
+  ether_hdr_t *hdr = (ether_hdr_t *)(payload - sizeof(ether_hdr_t));
+  ether_hdr_set_src_mac(hdr, src_mac);
+  ether_hdr_set_dst_mac(hdr, dst_mac);
+  ether_hdr_set_type(hdr, ethertype);
+  // Send packet via phy
+  uint32_t pktlen = sizeof(ether_hdr_t) + paylen;
+  uint8_t *pkt = (uint8_t *)hdr;
+  int sentlen = phy_node_send_frame_bytes(n, ointf, pkt, pktlen);
+  EXPECT_RETURN(sentlen == pktlen, "phy_node_send_frame_bytes failed");
 }
 
 int layer2_node_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen) {
