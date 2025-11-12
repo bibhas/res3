@@ -89,11 +89,12 @@ void layer3_recv_ipv4_pkt(node_t *n, interface_t *intf, ipv4_hdr_t *hdr, uint32_
   }
   // Local address?
   ipv4_addr_t dest_addr = ipv4_hdr_read_dst_addr(hdr);
+  ipv4_addr_t src_addr = ipv4_hdr_read_src_addr(hdr);
   if (node_is_local_address(n, &dst_addr)) {
     uint16_t prot = ipv4_hdr_read_protocol(hdr);
     uint8_t *payload = (uint8_t *)(hdr + 1);
     uint32_t payloadsize = ipv4_hdr_read_total_length(hdr) - (ipv4_hdr_read_ihl(hdr) * 4);
-    layer5_promote(n, intf, payload, payloadsize, &dest_addr, prot);
+    layer5_promote(n, intf, payload, payloadsize, &src_addr, prot);
     return;
   }
   // Local subnet
