@@ -20,6 +20,12 @@ bool phy_setup_udp_socket(uint32_t *port, int *fd);
 
 #pragma mark -
 
+// Utils
+
+bool phy_frame_buffer_shift_right(uint8_t **frameptr, uint32_t framelen, uint32_t buflen);
+
+#pragma mark -
+
 // Frame I/O
 
 int phy_node_send_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen);

@@ -37,8 +37,8 @@ struct __PACK__ ipv4_hdr_t {
 
 // Layer 3
 
-#define IPV4_PROT_ICMP 0
-#define IPV4_PROT_UDP 17
+#define PROT_ICMP 0
+#define PROT_UDP 17
 
 void layer3_demote(node_t *n, uint8_t *pkt, uint32_t pktlen, uint8_t prot, ipv4_addr_t *dst_addr);
 void layer3_promote(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t pktlen, uint16_t ether_type);
@@ -125,6 +125,10 @@ static inline ipv4_addr_t ipv4_hdr_read_src_addr(ipv4_hdr_t *hdr) {
 
 static inline void ipv4_hdr_set_src_addr(ipv4_hdr_t *hdr, uint32_t addr) {
   hdr->src_addr = htonl(addr);
+}
+
+static inline void ipv4_hdr_set_src_addr(ipv4_hdr_t *hdr, ipv4_addr_t *addr) {
+  hdr->src_addr = htonl(addr->value);
 }
 
 static inline ipv4_addr_t ipv4_hdr_read_dst_addr(ipv4_hdr_t *hdr) {
