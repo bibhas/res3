@@ -174,7 +174,7 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
 
 // Layer 2 I/O
 
-int layer2_promote(node_t *n, interface_t *intf, ether_hdr_t *ether_hdr, uint32_t framelen) {
+int layer2_promote(node_t *n, interface_t *iintf, ether_hdr_t *ether_hdr, uint32_t framelen) {
   uint16_t hdr_type = ether_hdr_read_type(ether_hdr);
   // Check if it's an ARP message
   if (hdr_type == ETHER_TYPE_ARP) {
@@ -182,12 +182,12 @@ int layer2_promote(node_t *n, interface_t *intf, ether_hdr_t *ether_hdr, uint32_
     uint16_t arp_op_code = arp_hdr_read_op_code(arp_hdr);
     switch (arp_op_code) {
       case ARP_OP_CODE_REQUEST: {
-        bool resp = node_arp_recv_broadcast_request_frame(n, intf, ether_hdr);
+        bool resp = node_arp_recv_broadcast_request_frame(n, iintf, ether_hdr);
         EXPECT_RETURN_VAL(resp == true, "node_arp_recv_broadcast_request_frame failed", -1);
         return framelen;
       }
       case ARP_OP_CODE_REPLY: {
-        bool resp = node_arp_recv_reply_frame(n, intf, ether_hdr);
+        bool resp = node_arp_recv_reply_frame(n, iintf, ether_hdr);
         EXPECT_RETURN_VAL(resp == true, "node_arp_recv_reply_frame failed", -1);
         return framelen;
       }
@@ -201,7 +201,7 @@ int layer2_promote(node_t *n, interface_t *intf, ether_hdr_t *ether_hdr, uint32_
     // We need to delegate processing of this packet to L3
     uint8_t *pkt = (uint8_t *)(ether_hdr + 1);
     uint32_t pktlen = framelen - sizeof(ether_hdr_t); // We ignore FCS
-    layer3_promote(n, intf, pkt, pktlen, hdr_type);
+    layer3_promote(n, iintf, pkt, pktlen, hdr_type);
     return framelen;
   }
   else {
@@ -210,7 +210,7 @@ int layer2_promote(node_t *n, interface_t *intf, ether_hdr_t *ether_hdr, uint32_
   return -1;
 }
 
-void layer2_demote(node_t *n, interface_t *intf, uint8_t *payload, uint32_t app_size, uint16_t prot) {
+void layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, uint8_t *payload, uint32_t paylen, uint16_t ethertype) {
   
 }
 
