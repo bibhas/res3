@@ -42,8 +42,6 @@ void node_dump_netprop(node_t *n);
 bool node_get_interface_matching_subnet(node_t *n, ipv4_addr_t *addr, interface_t **out);
 bool node_is_local_address(node_t *node, ipv4_addr_t *addr);
 
-
-
 #pragma mark -
 
 // Interface Network Properties
