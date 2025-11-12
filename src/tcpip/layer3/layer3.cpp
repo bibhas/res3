@@ -20,7 +20,14 @@ void layer3_demote(node_t *n, uint8_t *payload, uint32_t paylen, uint8_t prot, i
   if (entry->is_direct) {
     // self-ping or direct delivery
     next_hop_addr = dst_addr;
-    ointf = nullptr; // L2's headache
+    if (node_is_local_address(n, dst_addr)) {
+      ointf = nullptr; // self-ping
+    }
+    else {
+      bool resp = node_get_interface_matching_subnet(n, dst_addr, &ointf);
+      EXPECT_RETURN(resp == true, "node_get_interface_matching_subnet failed");
+      EXPECT_RETURN(ointf != nullptr, "node_get_interface_matching_subnet failed");
+    }
   }
   else {
     next_hop_addr = &entry->gw_ip;
@@ -40,14 +47,16 @@ void layer3_demote(node_t *n, uint8_t *payload, uint32_t paylen, uint8_t prot, i
   ipv4_hdr_set_ttl(hdr, 10); // TODO: TTL default??
   ipv4_hdr_set_protocol(hdr, prot);
   ipv4_hdr_set_checksum(hdr, 0);
-  ipv4_hdr_set_src_addr(hdr, &ointf->netprop.ip.addr);
+  if (ointf != nullptr) {
+    ipv4_hdr_set_src_addr(hdr, &ointf->netprop.ip.addr);
+  }
   ipv4_hdr_set_dst_addr(hdr, dst_addr); // <= This is NOT next hop address
   // Next, find the start of payload and copy provided pkt
   uint8_t *pkt_payload = (uint8_t *)(hdr + 1);
   memcpy(pkt_payload, payload, paylen);
   // Next, shift the contents to the right
   uint8_t *ptr = buffer;
-  bool resp = phy_frame_buffer_shift_right(&ptr, paylen, CONFIG_MAX_PACKET_BUFFER_SIZE);
+  bool resp = phy_frame_buffer_shift_right(&ptr, pktlen, CONFIG_MAX_PACKET_BUFFER_SIZE);
   EXPECT_RETURN(resp == true, "phy_frame_buffer_shift_right failed");
   // Finally, hand over the packet to Layer2
   layer2_demote(n, next_hop_addr, ointf, ptr, pktlen, ETHER_TYPE_IPV4);
@@ -57,7 +66,7 @@ void layer3_demote(node_t *n, uint8_t *payload, uint32_t paylen, uint8_t prot, i
 
 void layer3_recv_ipv4_pkt(node_t *n, interface_t *intf, ipv4_hdr_t *hdr, uint32_t pktlen) {
   EXPECT_RETURN(n != nullptr, "Empty node param");
-  EXPECT_RETURN(intf != nullptr, "Empty interface param");
+  //EXPECT_RETURN(intf != nullptr, "Empty interface param");
   EXPECT_RETURN(hdr != nullptr, "Empty pkt header param");
   // Check if we can find an entry for the destination address in the routing table
   ipv4_addr_t dst_addr = ipv4_hdr_read_dst_addr(hdr);
