@@ -15,6 +15,12 @@ void rt_init(rt_t **t) {
 bool rt_add_direct_route(rt_t *t, ipv4_addr_t *addr, uint8_t mask) {
   EXPECT_RETURN_BOOL(t != nullptr, "Empty rt param", false);
   EXPECT_RETURN_BOOL(addr != nullptr, "Empty addr param", false);
+  rt_entry_t *rt_entry = nullptr;
+  if (rt_lookup_exact(t, addr, mask, &rt_entry)) {
+    // Already exists.
+    return false;
+#pragma unused(rt_entry)
+  }
   auto entry = (rt_entry_t *)calloc(1, sizeof(rt_entry_t));
   bool resp = ipv4_addr_apply_mask(addr, mask, &entry->prefix.ip);
   entry->prefix.mask = mask;
@@ -25,11 +31,34 @@ bool rt_add_direct_route(rt_t *t, ipv4_addr_t *addr, uint8_t mask) {
   return true;
 }
 
+bool rt_lookup_exact(rt_t *t, ipv4_addr_t *addr, uint8_t mask, rt_entry_t **resp) {
+  EXPECT_RETURN_BOOL(t != nullptr, "Empty table param", false);
+  EXPECT_RETURN_BOOL(addr != nullptr, "Empty address param", false);
+  EXPECT_RETURN_BOOL(resp != nullptr, "Empty resp ptr param", false);
+  glthread_t *curr = nullptr;
+  GLTHREAD_FOREACH_BEGIN(&t->rt_entries, curr) {
+    rt_entry_t *entry = rt_entry_ptr_from_rt_glue(curr);
+    if (IPV4_ADDR_IS_EQUAL(*addr, entry->prefix.ip) && mask == entry->prefix.mask) {
+      *resp = entry;
+      return true;
+    }
+  }
+  GLTHREAD_FOREACH_END();
+  *resp = nullptr;
+  return false;
+}
+
 bool rt_add_route(rt_t *t, ipv4_addr_t *addr, uint8_t mask, ipv4_addr_t *gw_ip, interface_t *ointf) {
   EXPECT_RETURN_BOOL(t != nullptr, "Empty rt param", false);
   EXPECT_RETURN_BOOL(addr != nullptr, "Empty addr param", false);
   EXPECT_RETURN_BOOL(gw_ip != nullptr, "Empty gateway address param", false);
   EXPECT_RETURN_BOOL(ointf != nullptr, "Empty out interface ptr param", false);
+  rt_entry_t *rt_entry = nullptr;
+  if (rt_lookup_exact(t, addr, mask, &rt_entry)) {
+    // Already exists.
+    return false;
+#pragma unused(rt_entry)
+  }
   auto entry = (rt_entry_t *)calloc(1, sizeof(rt_entry_t));
   bool resp = ipv4_addr_apply_mask(addr, mask, &entry->prefix.ip);
   entry->prefix.mask = mask;
