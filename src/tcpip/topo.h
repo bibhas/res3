@@ -69,3 +69,9 @@ graph_t *graph_create_dual_switch_topology();
  * TODO: Make ASCII diagram.
  */
 graph_t *graph_create_quad_switch_loop_topology();
+
+/*
+ * TODO: Make ASCII diagram.
+ */
+graph_t *graph_create_three_router_one_switch_topology();
+

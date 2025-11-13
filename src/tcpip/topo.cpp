@@ -208,3 +208,51 @@ graph_t *graph_create_quad_switch_loop_topology() {
   // And, we're done.
   return topo;
 }
+
+graph_t *graph_create_three_router_one_switch_topology() {
+  graph_t *topo = graph_init("3R1SW3N topology");
+  // Add nodes
+  node_t *SW = graph_add_node(topo, "SW");
+  node_t *R1 = graph_add_node(topo, "R1");
+  node_t *R2 = graph_add_node(topo, "R2");
+  node_t *R3 = graph_add_node(topo, "R3");
+  node_t *H1 = graph_add_node(topo, "H1");
+  node_t *H2 = graph_add_node(topo, "H2");
+  node_t *H3 = graph_add_node(topo, "H3");
+  // Link nodes
+  link_nodes(H1, R1, "eth4/1", "eth1/2", 1);
+  link_nodes(H2, R2, "eth5/1", "eth2/2", 1);
+  link_nodes(H3, R3, "eth6/1", "eth3/2", 1);
+  link_nodes(R1, SW, "eth1/1", "eth0/1", 1);
+  link_nodes(R2, SW, "eth2/1", "eth0/2", 1);
+  link_nodes(R3, SW, "eth3/1", "eth0/3", 1);
+  // H1
+  node_set_loopback_address(H1, "122.0.0.4");
+  node_set_interface_ipv4_address(H1, "eth4/1", "10.0.0.2", 24);
+  // H2
+  node_set_loopback_address(H2, "122.0.0.5");
+  node_set_interface_ipv4_address(H2, "eth5/1", "20.0.0.2", 24);
+  // H3
+  node_set_loopback_address(H3, "122.0.0.6");
+  node_set_interface_ipv4_address(H3, "eth6/1", "30.0.0.2", 24);
+  // R1
+  node_set_loopback_address(R1, "122.0.0.1");
+  node_set_interface_ipv4_address(R1, "eth1/1", "40.0.0.1", 24);
+  node_set_interface_ipv4_address(R1, "eth1/2", "10.0.0.1", 24);
+  // R2
+  node_set_loopback_address(R2, "122.0.0.2");
+  node_set_interface_ipv4_address(R2, "eth2/1", "40.0.0.2", 24);
+  node_set_interface_ipv4_address(R2, "eth2/2", "20.0.0.1", 24);
+  // R3
+  node_set_loopback_address(R3, "122.0.0.3");
+  node_set_interface_ipv4_address(R3, "eth3/1", "40.0.0.3", 24);
+  node_set_interface_ipv4_address(R3, "eth3/2", "30.0.0.1", 24);
+  // SW
+  node_interface_enable_l2_mode(SW, "eth0/1", INTF_MODE_L2_ACCESS);
+  node_interface_enable_l2_mode(SW, "eth0/2", INTF_MODE_L2_ACCESS);
+  node_interface_enable_l2_mode(SW, "eth0/3", INTF_MODE_L2_ACCESS);
+  node_interface_add_l2_vlan_membership(SW, "eth0/1", 40);
+  node_interface_add_l2_vlan_membership(SW, "eth0/2", 40);
+  node_interface_add_l2_vlan_membership(SW, "eth0/3", 40);
+  return topo;
+}
