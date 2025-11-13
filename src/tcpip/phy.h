@@ -4,7 +4,13 @@
 
 #include <atomic>
 #include <cstdint>
-#include "graph.h"
+#include <functional>
+
+// Forward declarations
+
+typedef struct graph_t graph_t;
+typedef struct node_t node_t;
+typedef struct interface_t interface_t;
 
 #pragma mark -
 
@@ -28,4 +34,6 @@ bool phy_frame_buffer_shift_right(uint8_t **frameptr, uint32_t framelen, uint32_
 
 // Frame I/O
 
-int phy_node_send_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen);
+using phy_send_frame_fn_t = std::function<int(node_t*,interface_t*,uint8_t*,uint32_t)>;
+
+int __phy_node_send_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen);

@@ -4,9 +4,10 @@
 
 #include <cstdint>
 #include "utils.h"
-#include "layer2/arp.h"
-#include "layer2/mac.h"
-#include "layer3/rt.h"
+#include "layer2/layer2.h"
+#include "layer3/layer3.h"
+#include "layer5/layer5.h"
+#include "phy.h"
 
 // Forward declarations
 
@@ -15,6 +16,27 @@ typedef struct interface_t interface_t;
 typedef struct graph_t graph_t;
 typedef struct arp_table_t arp_table_t;
 typedef struct mac_table_t mac_table_t;
+
+#pragma mark -
+
+// Network stack
+
+struct node_netstack_t {
+  struct {
+    layer5_promote_fn_t promote   = &__layer5_promote;
+  } l5;
+  struct {
+    layer3_promote_fn_t promote   = &__layer3_promote;
+    layer3_demote_fn_t demote     = &__layer3_demote;
+  } l3;
+  struct {
+    layer2_promote_fn_t promote   = &__layer2_promote;
+    layer2_demote_fn_t demote     = &__layer2_demote;
+  } l2;
+  struct {
+    phy_send_frame_fn_t send      = &__phy_node_send_frame_bytes;
+  } phy;
+};
 
 #pragma mark -
 
@@ -30,6 +52,7 @@ struct node_netprop_t {
     bool configured;
     ipv4_addr_t addr;
   } loopback;
+  node_netstack_t netstack;
 };
 
 typedef struct node_netprop_t node_netprop_t;

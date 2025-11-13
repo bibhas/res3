@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <arpa/inet.h>
+#include <functional>
 #include "utils.h"
 #include "rt.h"
 
@@ -40,8 +41,11 @@ struct __PACK__ ipv4_hdr_t {
 #define PROT_ICMP 0
 #define PROT_UDP 17
 
-void layer3_demote(node_t *n, uint8_t *pkt, uint32_t pktlen, uint8_t prot, ipv4_addr_t *dst_addr);
-void layer3_promote(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t pktlen, uint16_t ether_type);
+using layer3_promote_fn_t = std::function<void(node_t*,interface_t*,uint8_t*,uint32_t,uint16_t)>;
+using layer3_demote_fn_t = std::function<void(node_t*,uint8_t*,uint32_t,uint8_t,ipv4_addr_t*)>;
+
+void __layer3_promote(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t pktlen, uint16_t ether_type);
+void __layer3_demote(node_t *n, uint8_t *pkt, uint32_t pktlen, uint8_t prot, ipv4_addr_t *dst_addr);
 
 #pragma mark -
 

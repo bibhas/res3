@@ -3,9 +3,10 @@
 #include "layer3.h"
 #include "layer2/layer2.h"
 #include "layer5/layer5.h"
+#include "graph.h"
 #include "phy.h"
 
-void layer3_demote(node_t *n, uint8_t *payload, uint32_t paylen, uint8_t prot, ipv4_addr_t *dst_addr) {
+void __layer3_demote(node_t *n, uint8_t *payload, uint32_t paylen, uint8_t prot, ipv4_addr_t *dst_addr) {
   EXPECT_RETURN(n != nullptr, "Empty node param");
   EXPECT_RETURN(payload != nullptr, "Empty payload param");
   EXPECT_RETURN(dst_addr != nullptr, "Empty destination address param");
@@ -59,7 +60,7 @@ void layer3_demote(node_t *n, uint8_t *payload, uint32_t paylen, uint8_t prot, i
   bool resp = phy_frame_buffer_shift_right(&ptr, pktlen, CONFIG_MAX_PACKET_BUFFER_SIZE);
   EXPECT_RETURN(resp == true, "phy_frame_buffer_shift_right failed");
   // Finally, hand over the packet to Layer2
-  layer2_demote(n, next_hop_addr, ointf, ptr, pktlen, ETHER_TYPE_IPV4);
+  NODE_NETSTACK(n).l2.demote(n, next_hop_addr, ointf, ptr, pktlen, ETHER_TYPE_IPV4);
   // Free memory
   free(buffer);
 }
@@ -84,7 +85,7 @@ void layer3_recv_ipv4_pkt(node_t *n, interface_t *intf, ipv4_hdr_t *hdr, uint32_
       printf("TTL == 0\n");
       return; // drop 
     }
-    layer2_demote(n, &rt_entry->gw_ip, ointf, (uint8_t *)hdr, pktlen, ETHER_TYPE_IPV4);
+    NODE_NETSTACK(n).l2.demote(n, &rt_entry->gw_ip, ointf, (uint8_t *)hdr, pktlen, ETHER_TYPE_IPV4);
     return;
   }
   // Local address?
@@ -94,14 +95,14 @@ void layer3_recv_ipv4_pkt(node_t *n, interface_t *intf, ipv4_hdr_t *hdr, uint32_
     uint16_t prot = ipv4_hdr_read_protocol(hdr);
     uint8_t *payload = (uint8_t *)(hdr + 1);
     uint32_t payloadsize = ipv4_hdr_read_total_length(hdr) - (ipv4_hdr_read_ihl(hdr) * 4);
-    layer5_promote(n, intf, payload, payloadsize, &src_addr, prot);
+    NODE_NETSTACK(n).l5.promote(n, intf, payload, payloadsize, &src_addr, prot);
     return;
   }
   // Local subnet
-  layer2_demote(n, &dest_addr, nullptr, (uint8_t *)hdr, pktlen, ETHER_TYPE_IPV4);
+  NODE_NETSTACK(n).l2.demote(n, &dest_addr, nullptr, (uint8_t *)hdr, pktlen, ETHER_TYPE_IPV4);
 }
 
-void layer3_promote(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t pktlen, uint16_t ether_type) {
+void __layer3_promote(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t pktlen, uint16_t ether_type) {
   if (ether_type != ETHER_TYPE_IPV4) {
     // We only accept IPV4 packets
     return;

@@ -2,9 +2,15 @@
 
 #pragma once
 
-#include "net.h"
-#include "graph.h"
+#include <functional>
+#include <arpa/inet.h>
 #include "utils.h"
+
+typedef struct node_t node_t;
+typedef struct interface_t interface_t;
+typedef struct graph_t graph_t;
+typedef struct arp_table_t arp_table_t;
+typedef struct mac_table_t mac_table_t;
 
 #pragma mark -
 
@@ -36,8 +42,11 @@ ether_hdr_t* ether_hdr_untag_vlan(ether_hdr_t *hdr, uint32_t len, uint32_t *newl
 
 // Layer 2 processing
 
-int layer2_promote(node_t *n, interface_t *iintf, ether_hdr_t *ether_hdr, uint32_t framelen);
-void layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, uint8_t *payload, uint32_t paylen, uint16_t ethertype);
+using layer2_promote_fn_t = std::function<int(node_t*,interface_t*,ether_hdr_t*,uint32_t)>;
+using layer2_demote_fn_t = std::function<void(node_t*,ipv4_addr_t*,interface_t*,uint8_t*,uint32_t,uint16_t)>;
+
+int __layer2_promote(node_t *n, interface_t *iintf, ether_hdr_t *ether_hdr, uint32_t framelen);
+void __layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, uint8_t *payload, uint32_t paylen, uint16_t ethertype);
 
 bool layer2_qualify_recv_frame_on_interface(interface_t *i, ether_hdr_t *hdr, uint16_t *vlan_id);
 bool layer2_qualify_send_frame_on_interface(interface_t *intf, ether_hdr_t *ethhdr);

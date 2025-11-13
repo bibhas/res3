@@ -3,6 +3,7 @@
 #include "catch2.hpp"
 #include "layer2.h"
 #include "phy.h"
+#include "graph.h"
 
 extern bool phy_frame_buffer_shift_right(uint8_t **pktptr, uint32_t pktlen, uint32_t buflen);
 

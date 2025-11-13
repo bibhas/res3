@@ -3,6 +3,8 @@
 #include "net.h"
 #include "graph.h"
 #include "utils.h"
+#include "layer2/arp.h"
+#include "layer2/mac.h"
 
 #pragma mark -
 
@@ -15,6 +17,7 @@ void node_netprop_init(node_netprop_t *prop) {
   arp_table_init(&prop->arp_table);
   mac_table_init(&prop->mac_table);
   rt_init(&prop->r_table);
+  prop->netstack = node_netstack_t();
 }
 
 bool node_set_loopback_address(node_t *n, const char *addrstr) {

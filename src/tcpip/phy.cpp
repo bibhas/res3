@@ -9,6 +9,7 @@
 #include "phy.h"
 #include "config.h"
 #include "pcap.h"
+#include "graph.h"
 
 #pragma mark -
 
@@ -140,7 +141,7 @@ bool phy_setup_udp_socket(uint32_t *port, int *fd) {
   return true;
 }
 
-int phy_node_send_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen) {
+int __phy_node_send_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen) {
   EXPECT_RETURN_BOOL(frame != nullptr, "Empty packet ptr param", false);
   EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface ptr param", false);
   // Create socket

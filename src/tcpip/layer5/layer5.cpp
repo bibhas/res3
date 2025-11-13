@@ -1,17 +1,18 @@
-
+// layer5.cpp
 
 #include "layer5.h"
+#include "graph.h"
 #include "layer3/layer3.h"
 
 bool layer5_perform_ping(node_t *n, ipv4_addr_t *addr) {
   EXPECT_RETURN_BOOL(n != nullptr, "Empty node param", false);
   EXPECT_RETURN_BOOL(addr != nullptr, "Empty destination address param", false);
   uint32_t payload = 659;
-  layer3_demote(n, (uint8_t *)&payload, sizeof(uint32_t), PROT_ICMP, addr);
+  NODE_NETSTACK(n).l3.demote(n, (uint8_t *)&payload, sizeof(uint32_t), PROT_ICMP, addr);
   return true;
 }
 
-void layer5_promote(node_t *n, interface_t *intf, uint8_t *payload, uint32_t len, ipv4_addr_t *addr, uint32_t prot) {
+void __layer5_promote(node_t *n, interface_t *intf, uint8_t *payload, uint32_t len, ipv4_addr_t *addr, uint32_t prot) {
   EXPECT_RETURN(n != nullptr, "Empty node param");
   //EXPECT_RETURN(intf != nullptr, "Empty interface param");
   EXPECT_RETURN(payload != nullptr, "Empty payload param");

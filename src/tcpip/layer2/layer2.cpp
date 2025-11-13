@@ -1,8 +1,11 @@
 // layer2.cpp
 
 #include <arpa/inet.h>
-#include "layer2.h"
 #include "layer3/layer3.h"
+#include "layer2.h"
+#include "graph.h"
+#include "arp.h"
+#include "mac.h"
 #include "phy.h"
 
 int layer2_switch_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen);
@@ -174,7 +177,7 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
 
 // Layer 2 I/O
 
-int layer2_promote(node_t *n, interface_t *iintf, ether_hdr_t *ether_hdr, uint32_t framelen) {
+int __layer2_promote(node_t *n, interface_t *iintf, ether_hdr_t *ether_hdr, uint32_t framelen) {
   uint16_t hdr_type = ether_hdr_read_type(ether_hdr);
   // Check if it's an ARP message
   if (hdr_type == ETHER_TYPE_ARP) {
@@ -201,7 +204,7 @@ int layer2_promote(node_t *n, interface_t *iintf, ether_hdr_t *ether_hdr, uint32
     // We need to delegate processing of this packet to L3
     uint8_t *pkt = (uint8_t *)(ether_hdr + 1);
     uint32_t pktlen = framelen - sizeof(ether_hdr_t); // We ignore FCS
-    layer3_promote(n, iintf, pkt, pktlen, hdr_type);
+    NODE_NETSTACK(n).l3.promote(n, iintf, pkt, pktlen, hdr_type);
     return framelen;
   }
   else {
@@ -210,7 +213,7 @@ int layer2_promote(node_t *n, interface_t *iintf, ether_hdr_t *ether_hdr, uint32
   return -1;
 }
 
-void layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, uint8_t *payload, uint32_t paylen, uint16_t ethertype) {
+void __layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, uint8_t *payload, uint32_t paylen, uint16_t ethertype) {
   EXPECT_RETURN(n != nullptr, "Empty node param");
   EXPECT_RETURN(nxt_hop_addr != nullptr, "Empty next hop address param");
   // We will to handle ointf == nullptr case manually
@@ -218,7 +221,7 @@ void layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, uin
   EXPECT_RETURN(payload != nullptr, "Empty payload ptr param");
   if (!ointf && node_is_local_address(n, nxt_hop_addr)) {
     // Self-ping case
-    layer3_promote(n, nullptr, payload, paylen, ethertype);
+    NODE_NETSTACK(n).l3.promote(n, nullptr, payload, paylen, ethertype);
     return;
   }
   if (!ointf) {
@@ -241,8 +244,8 @@ void layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, uin
   // Send packet via phy
   uint32_t pktlen = sizeof(ether_hdr_t) + paylen;
   uint8_t *pkt = (uint8_t *)hdr;
-  int sentlen = phy_node_send_frame_bytes(n, ointf, pkt, pktlen);
-  EXPECT_RETURN(sentlen == pktlen, "phy_node_send_frame_bytes failed");
+  int sentlen = NODE_NETSTACK(n).phy.send(n, ointf, pkt, pktlen);
+  EXPECT_RETURN(sentlen == pktlen, "NODE_NETSTACK(n).phy.send failed");
 }
 
 int layer2_node_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen) {
@@ -273,7 +276,7 @@ int layer2_node_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, u
   }
   else if (INTF_IS_L3_MODE(intf)) { 
     // Interface is configured in L3 mode
-    return layer2_promote(n, intf, ether_hdr, framelen);
+    return NODE_NETSTACK(n).l2.promote(n, intf, ether_hdr, framelen);
   }
   // Interface is not in a functional state. 
   // Silently drop igress frames.
@@ -324,14 +327,14 @@ int layer2_switch_send_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame,
     uint32_t untagged_framelen = 0;
     ether_hdr_t *untagged_hdr = ether_hdr_untag_vlan(ether_hdr, framelen, &untagged_framelen);
     EXPECT_RETURN_VAL(untagged_hdr != nullptr, "ether_hdr_untag_vlan failed", -1);
-    int resp = phy_node_send_frame_bytes(n, intf, (uint8_t *)untagged_hdr, untagged_framelen); 
-    EXPECT_CONTINUE(resp == untagged_framelen, "phy_node_send_frame_bytes failed");
+    int resp = NODE_NETSTACK(n).phy.send(n, intf, (uint8_t *)untagged_hdr, untagged_framelen); 
+    EXPECT_CONTINUE(resp == untagged_framelen, "NODE_NETSTACK(n).phy.send failed");
     return resp;
   }
   else if (INTF_MODE(intf) == INTF_MODE_L2_TRUNK) {
     // Forward tagged frames out of TRUNK interface
-    int resp = phy_node_send_frame_bytes(n, intf, (uint8_t *)ether_hdr, framelen); 
-    EXPECT_CONTINUE(resp == framelen, "comp_frame_send_bytes failed");
+    int resp = NODE_NETSTACK(n).phy.send(n, intf, (uint8_t *)ether_hdr, framelen); 
+    EXPECT_CONTINUE(resp == framelen, "NODE_NETSTACK(n).phy.send failed");
     return resp;
   }
   return -1;
@@ -361,13 +364,13 @@ int layer2_switch_flood_frame_bytes(node_t *n, interface_t *ignored, uint8_t *fr
     }
     if (INTF_MODE(intf) == INTF_MODE_L2_ACCESS) {
       // Strip VLAN tag before egress
-      int resp = phy_node_send_frame_bytes(n, intf, (uint8_t *)untagged_hdr, untagged_framelen); 
-      EXPECT_CONTINUE(resp == untagged_framelen, "comp_frame_send_bytes failed");
+      int resp = NODE_NETSTACK(n).phy.send(n, intf, (uint8_t *)untagged_hdr, untagged_framelen); 
+      EXPECT_CONTINUE(resp == untagged_framelen, "NODE_NETSTACK(n).phy.send failed");
       acc += resp;
     }
     else if (INTF_MODE(intf) == INTF_MODE_L2_TRUNK) {
-      int resp = phy_node_send_frame_bytes(n, intf, (uint8_t *)tagged_hdr, framelen); 
-      EXPECT_CONTINUE(resp == framelen, "comp_frame_send_bytes failed");
+      int resp = NODE_NETSTACK(n).phy.send(n, intf, (uint8_t *)tagged_hdr, framelen); 
+      EXPECT_CONTINUE(resp == framelen, "NODE_NETSTACK(n).phy.send failed");
       acc += resp;
     }
   }

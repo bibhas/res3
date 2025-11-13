@@ -69,6 +69,7 @@ interface_t* node_get_interface_by_name(node_t *node, const char *if_name);
 void node_dump(node_t *node);
 
 #define NODE_LO_ADDR(NODEPTR) &((NODEPTR)->netprop.loopback.addr)
+#define NODE_NETSTACK(NODEPTR) ((NODEPTR)->netprop.netstack)
 
 #pragma mark -
 
