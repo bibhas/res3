@@ -79,9 +79,9 @@ void layer3_recv_ipv4_pkt(node_t *n, interface_t *intf, ipv4_hdr_t *hdr, uint32_
     // Update dst ip (to gateway ip) and hand it over to L2 for forwarding
     interface_t *ointf = node_get_interface_by_name(n, (const char *)rt_entry->oif_name);
     EXPECT_RETURN(ointf != nullptr, "node_get_interface_by_name failed");
-    ipv4_hdr_set_dst_addr(hdr, &rt_entry->gw_ip);
     ipv4_hdr_set_ttl(hdr, ipv4_hdr_read_ttl(hdr) - 1);
     if (ipv4_hdr_read_ttl(hdr) == 0) {
+      printf("TTL == 0\n");
       return; // drop 
     }
     layer2_demote(n, &rt_entry->gw_ip, ointf, (uint8_t *)hdr, pktlen, ETHER_TYPE_IPV4);
