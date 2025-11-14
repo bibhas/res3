@@ -207,6 +207,9 @@ TEST_CASE("ARP table process reply", "[arp][reply]") {
   strncpy((char *)intf.if_name, "eth0/0", CONFIG_IF_NAME_SIZE);
   // Process the reply
   bool result = arp_table_process_reply(table, &hdr, &intf);
+  REQUIRE(result == false); // No unresolved entries added yet
+  arp_entry_t *__entry = nullptr;
+  result = arp_table_add_unresolved_entry(table, &src_ip, &__entry);
   REQUIRE(result == true);
   // Verify the entry was added
   ipv4_addr_t lookup_ip = arp_hdr_read_src_ip(&hdr);
