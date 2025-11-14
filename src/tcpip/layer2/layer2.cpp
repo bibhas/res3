@@ -230,22 +230,65 @@ void __layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, u
     EXPECT_RETURN(resp == true, "node_get_interface_matching_subnet failed");
   }
   // Resolve src and dst mac addresses
-  mac_addr_t *src_mac = INTF_MAC(ointf);
-  EXPECT_RETURN(src_mac != nullptr, "Missing src mac");
+  auto pending_lookup_processing_cb = [n, ethertype](arp_entry_t *entry, arp_lookup_t *pending) {
+    uint8_t *payload = (uint8_t *)(pending + 1);
+    uint32_t paylen = pending->bufflen;
+    ether_hdr_t *hdr = (ether_hdr_t *)payload;
+    // Get outgoing interface
+    interface_t *ointf = node_get_interface_by_name(n, entry->oif_name);
+    EXPECT_RETURN(ointf != nullptr, "node_get_interface_by_name failed");
+    // Set src MAC field
+    mac_addr_t *dst_mac = &entry->mac_addr;
+    EXPECT_RETURN(dst_mac != nullptr, "Missing dst mac");
+    ether_hdr_set_dst_mac(hdr, dst_mac);
+    // Set dst MAC field
+    mac_addr_t *src_mac = INTF_MAC(ointf);
+    EXPECT_RETURN(src_mac != nullptr, "Missing src mac");
+    ether_hdr_set_src_mac(hdr, src_mac);
+    // Set ethertype field
+    ether_hdr_set_type(hdr, ethertype);
+    // Finally, send off the packet
+    int sentlen = NODE_NETSTACK(n).phy.send(n, ointf, payload, paylen);
+    EXPECT_RETURN(sentlen == paylen, "NODE_NETSTACK(n).phy.send failed");
+    // No need to free arp_lookup_t (will be done internally)
+  };
+  arp_table_t *t = n->netprop.arp_table;
   arp_entry_t *arp_entry = nullptr;
-  bool resp = arp_table_lookup(n->netprop.arp_table, nxt_hop_addr, &arp_entry);
-  EXPECT_RETURN(resp == true, "arp_table_lookup failed");
-  mac_addr_t *dst_mac = &arp_entry->mac_addr;
-  // Tack on ethernet header (precondition: should be enough headroom)
-  ether_hdr_t *hdr = (ether_hdr_t *)(payload - sizeof(ether_hdr_t));
-  ether_hdr_set_src_mac(hdr, src_mac);
-  ether_hdr_set_dst_mac(hdr, dst_mac);
-  ether_hdr_set_type(hdr, ethertype);
-  // Send packet via phy
-  uint32_t pktlen = sizeof(ether_hdr_t) + paylen;
-  uint8_t *pkt = (uint8_t *)hdr;
-  int sentlen = NODE_NETSTACK(n).phy.send(n, ointf, pkt, pktlen);
-  EXPECT_RETURN(sentlen == pktlen, "NODE_NETSTACK(n).phy.send failed");
+  if (!arp_table_lookup(t, nxt_hop_addr, &arp_entry)) {
+    // No entry found. Create unresolved entry with pending lookups and send out ARP broadcast.
+    bool resp = arp_table_add_unresolved_entry(t, nxt_hop_addr, &arp_entry);
+    EXPECT_RETURN(resp == true, "arp_table_add_unresolved_entry failed");
+    EXPECT_RETURN(arp_entry_is_resolved(arp_entry) == false, "arp_table_add_unresolved_entry failed");
+    uint8_t *hdr_payload = payload - sizeof(ether_hdr_t);
+    uint32_t hdr_paylen = paylen + sizeof(ether_hdr_t);
+    resp = arp_entry_add_pending_lookup(arp_entry, hdr_payload, hdr_paylen, pending_lookup_processing_cb);
+    EXPECT_RETURN(resp == true, "arp_entry_add_pending_lookup failed");
+    resp = node_arp_send_broadcast_request(n, ointf, nxt_hop_addr);
+    EXPECT_RETURN(resp == true, "node_arp_send_broadcast_request failed");
+  }
+  else if (!arp_entry_is_resolved(arp_entry)) {
+    // Entry found, but it is pending
+    uint8_t *hdr_payload = payload - sizeof(ether_hdr_t);
+    uint32_t hdr_paylen = paylen + sizeof(ether_hdr_t);
+    bool resp = arp_entry_add_pending_lookup(arp_entry, hdr_payload, hdr_paylen, pending_lookup_processing_cb);
+    EXPECT_RETURN(resp == true, "arp_entry_add_pending_lookup failed");
+  }
+  else {
+    // Found resolved entry
+    mac_addr_t *dst_mac = &arp_entry->mac_addr;
+    mac_addr_t *src_mac = INTF_MAC(ointf);
+    EXPECT_RETURN(src_mac != nullptr, "Missing src mac");
+    // Tack on ethernet header (precondition: should be enough headroom)
+    ether_hdr_t *hdr = (ether_hdr_t *)(payload - sizeof(ether_hdr_t));
+    ether_hdr_set_src_mac(hdr, src_mac);
+    ether_hdr_set_dst_mac(hdr, dst_mac);
+    ether_hdr_set_type(hdr, ethertype);
+    // Send packet via phy
+    uint32_t pktlen = sizeof(ether_hdr_t) + paylen;
+    uint8_t *pkt = (uint8_t *)hdr;
+    int sentlen = NODE_NETSTACK(n).phy.send(n, ointf, pkt, pktlen);
+    EXPECT_RETURN(sentlen == pktlen, "NODE_NETSTACK(n).phy.send failed");
+  }
 }
 
 int layer2_node_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen) {
@@ -279,7 +322,7 @@ int layer2_node_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, u
     return NODE_NETSTACK(n).l2.promote(n, intf, ether_hdr, framelen);
   }
   // Interface is not in a functional state. 
-  // Silently drop igress frames.
+  // Silently drop ingress frames.
   // TODO: Probably add a hw counter to signal dropped packets (?)
   return 0;
 }

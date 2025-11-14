@@ -44,6 +44,7 @@ bool node_arp_recv_reply_frame(node_t *n, interface_t *iintf, ether_hdr_t *hdr);
 
 typedef struct arp_entry_t arp_entry_t;
 typedef struct arp_table_t arp_table_t;
+typedef struct arp_lookup_t arp_lookup_t;
 
 struct arp_table_t {
   glthread_t arp_entries;
@@ -54,6 +55,11 @@ struct arp_entry_t {
   mac_addr_t mac_addr;
   char oif_name[CONFIG_IF_NAME_SIZE];
   glthread_t arp_table_glue;
+  // ARP on Demand
+  struct {
+    bool is_resolved = true;
+    glthread_t pending_lookups;
+  } aod;
 };
 
 DEFINE_GLTHREAD_TO_STRUCT_FUNC(
@@ -70,13 +76,39 @@ DEFINE_GLTHREAD_TO_STRUCT_FUNC(
   ARP_ENTRY_PTR_KEYS_ARE_EQUAL(ARP0, ARP1) && \
   ((ARP0)->mac_addr.value == (ARP1)->mac_addr.value)
 
+using arp_lookup_processing_fn = std::function<void(arp_entry_t*,arp_lookup_t*)>;
+
+struct arp_lookup_t {
+  glthread_t arp_entry_glue;
+  arp_lookup_processing_fn cb;
+  uint32_t bufflen;
+};
+
+DEFINE_GLTHREAD_TO_STRUCT_FUNC(
+  arp_lookup_ptr_from_arp_entry_glue,   // fn name
+  arp_lookup_t,                         // return type
+  arp_entry_glue                        // glthread_t field in arp_lookup_t
+);
+
+// ARP table
+
 void arp_table_init(arp_table_t **t);
 bool arp_table_lookup(arp_table_t *t, ipv4_addr_t *ip_addr, arp_entry_t **out);
 bool arp_table_add_entry(arp_table_t *t, arp_entry_t *entry);
+bool arp_table_add_unresolved_entry(arp_table_t *t, ipv4_addr_t *addr, arp_entry_t **entry);
 bool arp_table_delete_entry(arp_table_t *t, ipv4_addr_t *ip_addr);
 bool arp_table_clear(arp_table_t *t);
 void arp_table_dump(arp_table_t *t);
 bool arp_table_process_reply(arp_table_t *t, arp_hdr_t *hdr, interface_t *intf);
+
+// ARP entries
+
+bool arp_entry_add_pending_lookup(arp_entry_t *e, uint8_t *pay, uint32_t paylen, arp_lookup_processing_fn cb);
+
+static inline bool arp_entry_is_resolved(arp_entry_t *entry) {
+  EXPECT_RETURN_BOOL(entry != nullptr, "Empty entry param", false);
+  return entry->aod.is_resolved;
+}
 
 #pragma mark -
 

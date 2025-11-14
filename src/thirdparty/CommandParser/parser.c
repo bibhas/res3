@@ -423,7 +423,7 @@ command_parser(void){
     read_history(CMD_HIST_RECORD_FILE);
 
     while(1){
-        usleep(700); // TODO: Fix this
+        sleep(1); // TODO: Fix this
         is_repeat_cmd = false;
 
         /* Build the prompt string */
