@@ -38,14 +38,29 @@ struct __PACK__ ipv4_hdr_t {
 
 // Layer 3
 
-#define PROT_ICMP 0
-#define PROT_UDP 17
+#define PROT_ICMP   1
+#define PROT_IPIP   4
+#define PROT_UDP    17
 
 using layer3_promote_fn_t = std::function<void(node_t*,interface_t*,uint8_t*,uint32_t,uint16_t)>;
 using layer3_demote_fn_t = std::function<void(node_t*,uint8_t*,uint32_t,uint8_t,ipv4_addr_t*)>;
 
+// Not to be called directly (use node's netstack function pointers instead)
+
 void __layer3_promote(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t pktlen, uint16_t ether_type);
 void __layer3_demote(node_t *n, uint8_t *pkt, uint32_t pktlen, uint8_t prot, ipv4_addr_t *dst_addr);
+
+// Utils
+
+bool layer3_resolve_next_hop(node_t *n, ipv4_addr_t *dst_addr, ipv4_addr_t **hop_addr, interface_t **ointf);
+bool layer3_resolve_src_for_dst(node_t *n, ipv4_addr_t *dst_addr, ipv4_addr_t **src_addr, interface_t **ointf = nullptr);
+
+#pragma mark -
+
+// IP-in-IP encapsulation
+
+void layer3_demote_ipnip(node_t *n, uint8_t *pkt, uint32_t pktlen, uint8_t prot, ipv4_addr_t *dst_addr, ipv4_addr_t *ero_addr);
+bool layer3_forward_ipnp(node_t *n, uint8_t *payload, uint32_t paylen);
 
 #pragma mark -
 

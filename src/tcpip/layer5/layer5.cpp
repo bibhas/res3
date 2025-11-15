@@ -4,11 +4,17 @@
 #include "graph.h"
 #include "layer3/layer3.h"
 
-bool layer5_perform_ping(node_t *n, ipv4_addr_t *addr) {
+bool layer5_perform_ping(node_t *n, ipv4_addr_t *addr, ipv4_addr_t *ero_addr) {
   EXPECT_RETURN_BOOL(n != nullptr, "Empty node param", false);
   EXPECT_RETURN_BOOL(addr != nullptr, "Empty destination address param", false);
   uint32_t payload = 659;
-  NODE_NETSTACK(n).l3.demote(n, (uint8_t *)&payload, sizeof(uint32_t), PROT_ICMP, addr);
+  if (ero_addr != nullptr) {
+    // Perform IP-in-IP encapsulation
+    layer3_demote_ipnip(n, (uint8_t *)&payload, sizeof(uint32_t), PROT_ICMP, addr, ero_addr);
+  }
+  else {
+    NODE_NETSTACK(n).l3.demote(n, (uint8_t *)&payload, sizeof(uint32_t), PROT_ICMP, addr);
+  }
   return true;
 }
 

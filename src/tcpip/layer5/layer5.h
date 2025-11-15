@@ -22,4 +22,4 @@ void __layer5_promote(node_t *n, interface_t *intf, uint8_t *payload, uint32_t l
 
 // Layer 5 services
 
-bool layer5_perform_ping(node_t *n, ipv4_addr_t *addr);
+bool layer5_perform_ping(node_t *n, ipv4_addr_t *addr, ipv4_addr_t *ero_addr = nullptr);
