@@ -29,7 +29,7 @@ void __layer3_demote(node_t *n, uint8_t *payload, uint32_t paylen, uint8_t prot,
   ipv4_hdr_set_protocol(hdr, prot);
   ipv4_hdr_set_checksum(hdr, 0);
   if (ointf != nullptr) {
-    ipv4_hdr_set_src_addr(hdr, &ointf->netprop.ip.addr);
+    ipv4_hdr_set_src_addr(hdr, &INTF_NETPROP(ointf).l3.addr);
   }
   ipv4_hdr_set_dst_addr(hdr, dst_addr); // <= This is NOT next hop address
   // Next, find the start of payload and copy provided pkt
@@ -154,7 +154,7 @@ bool layer3_resolve_src_for_dst(node_t *n, ipv4_addr_t *dst_addr, ipv4_addr_t **
     if (ointf) {
       *ointf = intf;
     }
-    *src_addr = &intf->netprop.ip.addr;
+    *src_addr = &INTF_NETPROP(intf).l3.addr;
     if (ointf) {
       EXPECT_RETURN_BOOL(*ointf != nullptr, "node_get_interface_by_name failed", false);
     }
@@ -173,7 +173,7 @@ bool layer3_resolve_src_for_dst(node_t *n, ipv4_addr_t *dst_addr, ipv4_addr_t **
       bool resp = node_get_interface_matching_subnet(n, dst_addr, &intf);
       EXPECT_RETURN_BOOL(resp == true, "node_get_interface_matching_subnet failed", false);
       EXPECT_RETURN_BOOL(intf != nullptr, "node_get_interface_matching_subnet failed", false);
-      *src_addr = &intf->netprop.ip.addr;
+      *src_addr = &INTF_NETPROP(intf).l3.addr;
       if (ointf) {
         *ointf = intf;
       }

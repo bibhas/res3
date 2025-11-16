@@ -32,7 +32,7 @@ bool node_arp_send_broadcast_request(node_t *n, interface_t *ointf, ipv4_addr_t 
   uint32_t framelen = sizeof(ether_hdr_t) + sizeof(arp_hdr_t);
   ether_hdr_t *ether_hdr = (ether_hdr_t *)calloc(1, framelen);
   // Fill out Ethernet header fields
-  ether_hdr_set_src_mac(ether_hdr, INTF_MAC(ointf)); // our intf MAC
+  ether_hdr_set_src_mac(ether_hdr, INTF_MAC_PTR(ointf)); // our intf MAC
   mac_addr_t broadcast_mac = {0};
   mac_addr_fill_broadcast(&broadcast_mac);           // broadcast MAC address
   ether_hdr_set_dst_mac(ether_hdr, &broadcast_mac);
@@ -44,8 +44,8 @@ bool node_arp_send_broadcast_request(node_t *n, interface_t *ointf, ipv4_addr_t 
   arp_hdr_set_hw_addr_len(arp_hdr, 6);               // 6 byte MAC address
   arp_hdr_set_proto_addr_len(arp_hdr, 4);            // 4 byte IP address
   arp_hdr_set_op_code(arp_hdr, ARP_OP_CODE_REQUEST);
-  arp_hdr_set_src_mac(arp_hdr, INTF_MAC(ointf));
-  arp_hdr_set_src_ip(arp_hdr, INTF_IP(ointf)->value);
+  arp_hdr_set_src_mac(arp_hdr, INTF_MAC_PTR(ointf));
+  arp_hdr_set_src_ip(arp_hdr, INTF_IP_PTR(ointf)->value);
   arp_hdr_set_dst_mac(arp_hdr, MAC_ADDR_PTR_ZEROED);
   arp_hdr_set_dst_ip(arp_hdr, ip_addr->value); // <- The IPv4 address for which we want to know the MAC address
   // Pass frame to layer 1
@@ -61,7 +61,7 @@ bool node_arp_recv_broadcast_request_frame(node_t *n, interface_t *iintf, ether_
   EXPECT_RETURN_BOOL(hdr != nullptr, "Empty ethernet header param", false);
   arp_hdr_t *arp_hdr = (arp_hdr_t *)(hdr + 1); // payload, beyond the ethernet header
   ipv4_addr_t target_ip = arp_hdr_read_dst_ip(arp_hdr);
-  if (IPV4_ADDR_PTR_IS_EQUAL(INTF_IP(iintf), &target_ip)) { 
+  if (IPV4_ADDR_PTR_IS_EQUAL(INTF_IP_PTR(iintf), &target_ip)) { 
     if (arp_hdr_read_op_code(arp_hdr) == ARP_OP_CODE_REQUEST) {
       return node_arp_send_reply_frame(n, iintf, hdr);
     }
@@ -82,7 +82,7 @@ bool node_arp_send_reply_frame(node_t *n, interface_t *ointf, ether_hdr_t *in_et
   // Fill up Ethernet header fields (note: be mindful of host/net. byte order)
   mac_addr_t in_src_mac = ether_hdr_read_src_mac(in_ether_hdr);
   ether_hdr_set_dst_mac(out_ether_hdr, &in_src_mac);
-  ether_hdr_set_src_mac(out_ether_hdr, INTF_MAC(ointf));
+  ether_hdr_set_src_mac(out_ether_hdr, INTF_MAC_PTR(ointf));
   ether_hdr_set_type(out_ether_hdr, ETHER_TYPE_ARP);
   // Fill up ARP header fields (note: be mindful of host/net. byte order)
   arp_hdr_t *out_arp_hdr = (arp_hdr_t *)(out_ether_hdr + 1);
@@ -94,8 +94,8 @@ bool node_arp_send_reply_frame(node_t *n, interface_t *ointf, ether_hdr_t *in_et
   mac_addr_t dst_mac = arp_hdr_read_src_mac(in_arp_hdr);
   arp_hdr_set_dst_mac(out_arp_hdr, &dst_mac);
   arp_hdr_set_dst_ip(out_arp_hdr, arp_hdr_read_src_ip(in_arp_hdr).value);
-  arp_hdr_set_src_mac(out_arp_hdr, INTF_MAC(ointf));
-  arp_hdr_set_src_ip(out_arp_hdr, INTF_IP(ointf)->value);
+  arp_hdr_set_src_mac(out_arp_hdr, INTF_MAC_PTR(ointf));
+  arp_hdr_set_src_ip(out_arp_hdr, INTF_IP_PTR(ointf)->value);
   // Send out packet
   int resp = NODE_NETSTACK(n).phy.send(n, ointf, (uint8_t *)out_ether_hdr, out_framelen);
   EXPECT_RETURN_BOOL(resp == (int)out_framelen, "NODE_NETSTACK(n).phy.send failed", false);

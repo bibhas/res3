@@ -32,6 +32,15 @@ void interface_dump(interface_t *interface);
 
 #pragma mark -
 
+// VLAN
+
+struct vlan_t {
+  uint16_t id;
+  interface_t svi;
+};
+
+#pragma mark -
+
 // Link
 
 struct link_t {

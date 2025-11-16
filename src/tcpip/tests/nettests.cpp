@@ -17,7 +17,8 @@ TEST_CASE("node_get_interface_matching_subnet - basic match", "[net][subnet]") {
   REQUIRE(node2 != nullptr);
   link_nodes(node, node2, "eth0/0", "eth0/1", 1);
   // Configure IP address on node's interface (192.168.1.1/24)
-  bool result = node_set_interface_ipv4_address(node, "eth0/0", "192.168.1.1", 24);
+  node_interface_set_mode(node, "eth0/0", INTF_MODE_L3);
+  bool result = node_interface_set_ipv4_address(node, "eth0/0", "192.168.1.1", 24);
   REQUIRE(result == true);
   // Test: Look for an IP in the same subnet (192.168.1.0/24)
   ipv4_addr_t test_ip = {.bytes = {192, 168, 1, 100}};
@@ -40,7 +41,8 @@ TEST_CASE("node_get_interface_matching_subnet - no match different subnet", "[ne
   REQUIRE(node2 != nullptr);
   link_nodes(node, node2, "eth0/0", "eth0/0", 1);
   // Configure IP address on node's interface (192.168.1.1/24)
-  bool result = node_set_interface_ipv4_address(node, "eth0/0", "192.168.1.1", 24);
+  node_interface_set_mode(node, "eth0/0", INTF_MODE_L3);
+  bool result = node_interface_set_ipv4_address(node, "eth0/0", "192.168.1.1", 24);
   REQUIRE(result == true);
   // Test: Look for an IP in a different subnet (10.0.0.0/8)
   ipv4_addr_t test_ip = {.bytes = {10, 0, 0, 1}};
@@ -65,9 +67,11 @@ TEST_CASE("node_get_interface_matching_subnet - multiple interfaces", "[net][sub
   link_nodes(node, node2, "eth0/0", "eth0/0", 1);
   link_nodes(node, node3, "eth0/1", "eth0/0", 1);
   // Configure IP addresses on both interfaces
-  bool result = node_set_interface_ipv4_address(node, "eth0/0", "192.168.1.1", 24);
+  node_interface_set_mode(node, "eth0/0", INTF_MODE_L3);
+  bool result = node_interface_set_ipv4_address(node, "eth0/0", "192.168.1.1", 24);
   REQUIRE(result == true);
-  result = node_set_interface_ipv4_address(node, "eth0/1", "10.1.1.1", 24);
+  node_interface_set_mode(node, "eth0/1", INTF_MODE_L3);
+  result = node_interface_set_ipv4_address(node, "eth0/1", "10.1.1.1", 24);
   REQUIRE(result == true);
   SECTION("Find interface in first subnet") {
     ipv4_addr_t test_ip = {.bytes = {192, 168, 1, 50}};
@@ -107,7 +111,8 @@ TEST_CASE("node_get_interface_matching_subnet - different subnet masks", "[net][
   link_nodes(node, node2, "eth0/0", "eth0/0", 1);
   SECTION("Test /16 subnet mask") {
     // Configure with /16 mask (172.16.0.1/16)
-    bool result = node_set_interface_ipv4_address(node, "eth0/0", "172.16.0.1", 16);
+    node_interface_set_mode(node, "eth0/0", INTF_MODE_L3);
+    bool result = node_interface_set_ipv4_address(node, "eth0/0", "172.16.0.1", 16);
     REQUIRE(result == true);
     // Should match 172.16.x.x
     ipv4_addr_t test_ip1 = {.bytes = {172, 16, 100, 200}};
@@ -123,7 +128,8 @@ TEST_CASE("node_get_interface_matching_subnet - different subnet masks", "[net][
   }
   SECTION("Test /8 subnet mask") {
     // Configure with /8 mask (10.0.0.1/8)
-    bool result = node_set_interface_ipv4_address(node, "eth0/0", "10.0.0.1", 8);
+    node_interface_set_mode(node, "eth0/0", INTF_MODE_L3);
+    bool result = node_interface_set_ipv4_address(node, "eth0/0", "10.0.0.1", 8);
     REQUIRE(result == true);
     // Should match 10.x.x.x
     ipv4_addr_t test_ip1 = {.bytes = {10, 200, 100, 50}};
@@ -140,7 +146,8 @@ TEST_CASE("node_get_interface_matching_subnet - different subnet masks", "[net][
   SECTION("Test /30 subnet mask") {
     // Configure with /30 mask (192.168.1.1/30)
     // This gives us a subnet with 4 IPs: .0, .1, .2, .3
-    bool result = node_set_interface_ipv4_address(node, "eth0/0", "192.168.1.1", 30);
+    node_interface_set_mode(node, "eth0/0", INTF_MODE_L3);
+    bool result = node_interface_set_ipv4_address(node, "eth0/0", "192.168.1.1", 30);
     REQUIRE(result == true);
     // Should match 192.168.1.2 (in range .0-.3)
     ipv4_addr_t test_ip1 = {.bytes = {192, 168, 1, 2}};
@@ -227,7 +234,8 @@ TEST_CASE("node_get_interface_matching_subnet - exact IP match", "[net][subnet]"
   REQUIRE(node2 != nullptr);
   link_nodes(node, node2, "eth0/0", "eth0/0", 1);
   // Configure IP address
-  bool result = node_set_interface_ipv4_address(node, "eth0/0", "192.168.1.1", 24);
+  node_interface_set_mode(node, "eth0/0", INTF_MODE_L3);
+  bool result = node_interface_set_ipv4_address(node, "eth0/0", "192.168.1.1", 24);
   REQUIRE(result == true);
   // Test: Look for the exact same IP as configured on the interface
   ipv4_addr_t test_ip = {.bytes = {192, 168, 1, 1}};
@@ -250,7 +258,8 @@ TEST_CASE("node_get_interface_matching_subnet - broadcast address", "[net][subne
   REQUIRE(node2 != nullptr);
   link_nodes(node, node2, "eth0/0", "eth0/0", 1);
   // Configure IP address (192.168.1.1/24)
-  bool result = node_set_interface_ipv4_address(node, "eth0/0", "192.168.1.1", 24);
+  node_interface_set_mode(node, "eth0/0", INTF_MODE_L3);
+  bool result = node_interface_set_ipv4_address(node, "eth0/0", "192.168.1.1", 24);
   REQUIRE(result == true);
   // Test: Look for the broadcast address (192.168.1.255)
   ipv4_addr_t test_ip = {.bytes = {192, 168, 1, 255}};
@@ -273,7 +282,8 @@ TEST_CASE("node_get_interface_matching_subnet - network address", "[net][subnet]
   REQUIRE(node2 != nullptr);
   link_nodes(node, node2, "eth0/0", "eth0/0", 1);
   // Configure IP address (192.168.1.1/24)
-  bool result = node_set_interface_ipv4_address(node, "eth0/0", "192.168.1.1", 24);
+  node_interface_set_mode(node, "eth0/0", INTF_MODE_L3);
+  bool result = node_interface_set_ipv4_address(node, "eth0/0", "192.168.1.1", 24);
   REQUIRE(result == true);
   // Test: Look for the network address (192.168.1.0)
   ipv4_addr_t test_ip = {.bytes = {192, 168, 1, 0}};
@@ -285,24 +295,6 @@ TEST_CASE("node_get_interface_matching_subnet - network address", "[net][subnet]
 }
 
 TEST_CASE("node_is_local_address", "[net][node]") {
-/*
- *                        +----------+
- *               eth0/4   |          |eth0/0
- *       +----------------+    H0    +------------------+
- *       |     40.1.1.1/24|          |20.1.1.1/24       |
- *       |                +----------+                  |
- *       |                 122.1.1.0                    |
- *       |                                              |
- *       |                                              |
- *       |40.1.1.2/24                                   |20.1.1.2/24
- *       |eth0/5                                        |eth0/1
- *   +---+---+                                      +---+----+
- *   |       |eth0/3                          eth0/2|        |
- *   |   H2  +--------------------------------------+   H1   |
- *   |       |30.1.1.2/24            30.1.1.1/24    |        |
- *   +-------+                                      +--------+
- *   122.1.1.2                                      122.1.1.1
- */
   graph_t *topo = graph_create_three_node_ring_topology();
   node_t *H0 = graph_find_node_by_name(topo, "H0");
   // Run tests

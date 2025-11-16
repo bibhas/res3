@@ -31,12 +31,15 @@ void interface_dump(interface_t *interface) {
   if (!interface) { return; }
   dump_line_indentation_guard_t guard0;
   node_t *nbr_node = interface_get_neighbor_node(interface);
-  dump_line("Attached node: %s\n", interface->att_node ? interface->att_node->node_name : "x");
-  dump_line("Neighbor node: %s\n", nbr_node ? nbr_node->node_name : "x");
-  dump_line("Cost: %u\n", interface->link ? interface->link->cost : 0);
-  dump_line("Network Properties:\n");
-  dump_line_indentation_add(1);
   interface_dump_netprop(interface);
+  printf(" %s", interface->att_node ? interface->att_node->node_name : "x");
+  if (interface->link) {
+    printf(" -> %s", nbr_node ? nbr_node->node_name : "x");
+    printf(" (cost:%u)\n", interface->link ? interface->link->cost : 0);
+  }
+  else {
+    printf("\n");
+  }
 }
 
 #pragma mark -
@@ -135,22 +138,19 @@ void node_dump(node_t *node) {
   if (!node) { return; }
   dump_line_indentation_guard_t guard0;
   // Node name
-  dump_line("Node name: %s\n", node->node_name);
-  dump_line_indentation_add(1);
-  // UDP port
-  dump_line("UDP port: %d\n", node->udp.port);
+  printf("\n");
+  dump_line("%s (udp: %d) ", node->node_name, node->udp.port);;
   // Network properties
   dump_line_indentation_push();
-  dump_line("Network Properties:\n");
-  dump_line_indentation_add(1);
   node_dump_netprop(node);
+  dump_line("-----------------------------------------------------------------\n");
   dump_line_indentation_pop();
+  dump_line_indentation_add(1);
   // Interfaces
   for (int i = 0; i < CONFIG_MAX_INTF_PER_NODE; i++) {
     if (!node->intf[i]) { continue; }
     dump_line_indentation_guard_t guard1;
-    dump_line("Interface: %s\n", node->intf[i]->if_name);
-    dump_line_indentation_add(1);
+    dump_line("%s : ", node->intf[i]->if_name);
     interface_dump(node->intf[i]);
   }
 }

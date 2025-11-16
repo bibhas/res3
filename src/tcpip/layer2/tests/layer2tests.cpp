@@ -71,9 +71,9 @@ TEST_CASE("L3 Mode", "[layer2][interface][qualify]") {
   // Setup L3 interface
   interface_t intf {
     .netprop = {
-      .mode = INTF_MODE_UNKNOWN,
-      .mac_addr = TEST_MAC_ADDR0,
-      .ip = { .configured = true } // L3 mode
+      .mode = INTF_MODE_L3,
+      .l2 = { .mac_addr = TEST_MAC_ADDR0 },
+      .l3 = { .configured = true } // L3 mode
     }
   };
   // Allocate ethernet frame in the stack itself
@@ -128,7 +128,7 @@ TEST_CASE("L2 ACCESS Mode", "[layer2][interface][qualify]") {
   err_logging_disable_guard_t guard; // We expect errors, so silence err logging
   // Setup L2 interface
   interface_t intf;
-  interface_enable_l2_mode(&intf, INTF_MODE_L2_ACCESS);
+  interface_set_mode(&intf, INTF_MODE_L2_ACCESS);
   // Allocate ethernet frame in the stack itself
   uint8_t frame_buf[256] = {0};
   SECTION("Tagged frame") {
@@ -140,15 +140,15 @@ TEST_CASE("L2 ACCESS Mode", "[layer2][interface][qualify]") {
     ether_hdr_t *tagged_hdr = ether_hdr_tag_vlan(hdr, sizeof(ether_hdr_t), TEST_VLAN_ID_VALID0);
     // Cases
     SECTION("No assigned VLANs") {
-      interface_clear_l2_vlan_memberships(&intf);
+      interface_clear_vlan_memberships(&intf);
       // L2 ACCESS mode without any VLAN assignment should reject all ingress frames
       uint16_t vlan_id = 0;
       bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr, &vlan_id);
       REQUIRE(resp == false);
     }
     SECTION("Matches port VLAN") {
-      interface_clear_l2_vlan_memberships(&intf);
-      interface_add_l2_vlan_membership(&intf, TEST_VLAN_ID_VALID0);
+      interface_clear_vlan_memberships(&intf);
+      interface_add_vlan_membership(&intf, TEST_VLAN_ID_VALID0);
       // L2 ACCESS mode should allow ingress frames with matching VLAN ID
       uint16_t vlan_id = 0;
       bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr, &vlan_id);
@@ -156,8 +156,8 @@ TEST_CASE("L2 ACCESS Mode", "[layer2][interface][qualify]") {
       REQUIRE(vlan_id == TEST_VLAN_ID_VALID0);
     }
     SECTION("Does not match port VLAN") {
-      interface_clear_l2_vlan_memberships(&intf);
-      interface_add_l2_vlan_membership(&intf, TEST_VLAN_ID_INVALID);
+      interface_clear_vlan_memberships(&intf);
+      interface_add_vlan_membership(&intf, TEST_VLAN_ID_INVALID);
       SECTION("0th VLAN ID doesn't match") {
         // L2 ACCESS mode should not allow ingress frames with different VLAN ID
         uint16_t vlan_id = 0;
@@ -165,9 +165,9 @@ TEST_CASE("L2 ACCESS Mode", "[layer2][interface][qualify]") {
         REQUIRE(resp == false);
       }
       SECTION("0th VLAN ID doesn't match but Nth does") {
-        // We manually add VLAN ID because interface_add_l2_vlan_membership won't
+        // We manually add VLAN ID because interface_add_vlan_membership won't
         // allow us to add more than one VLANs in L2 ACCESS mode.
-        intf.netprop.vlan_memberships[1] = TEST_VLAN_ID_VALID0;
+        intf.netprop.l2.vlan_memberships[1] = TEST_VLAN_ID_VALID0;
         // L2 ACCESS mode should not allow ingress frames with different VLAN ID
         uint16_t vlan_id = 0;
         bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr, &vlan_id);
@@ -183,15 +183,15 @@ TEST_CASE("L2 ACCESS Mode", "[layer2][interface][qualify]") {
     ether_hdr_set_type(hdr, ETHER_TYPE_IPV4);
     // Cases
     SECTION("No assigned VLANs") {
-      interface_clear_l2_vlan_memberships(&intf);
+      interface_clear_vlan_memberships(&intf);
       // L2 ACCESS mode without any VLAN assignment should reject all ingress frames
       uint16_t vlan_id = 0;
       bool resp = layer2_qualify_recv_frame_on_interface(&intf, hdr, &vlan_id);
       REQUIRE(resp == false);
     }
     SECTION("Has assigned VLAN") {
-      interface_clear_l2_vlan_memberships(&intf);
-      interface_add_l2_vlan_membership(&intf, TEST_VLAN_ID_VALID0);
+      interface_clear_vlan_memberships(&intf);
+      interface_add_vlan_membership(&intf, TEST_VLAN_ID_VALID0);
       // L2 ACCESS mode with assigned VLANs should accept (and ultimately tag)
       // untagged frames (tagging is out of scope for this test/function).
       uint16_t vlan_id = 0;
@@ -206,7 +206,7 @@ TEST_CASE("L2 TRUNK Mode", "[layer2][interface][qualify]") {
   err_logging_disable_guard_t guard; // We expect errors, so silence err logging
   // Setup L2 interface
   interface_t intf;
-  interface_enable_l2_mode(&intf, INTF_MODE_L2_TRUNK);
+  interface_set_mode(&intf, INTF_MODE_L2_TRUNK);
   // Allocate ethernet frame in the stack itself
   uint8_t frame_buf[256] = {0};
   SECTION("Tagged frame") {
@@ -218,16 +218,16 @@ TEST_CASE("L2 TRUNK Mode", "[layer2][interface][qualify]") {
     ether_hdr_t *tagged_hdr = ether_hdr_tag_vlan(hdr, sizeof(ether_hdr_t), TEST_VLAN_ID_VALID0);
     // Cases
     SECTION("No assigned VLANs") {
-      interface_clear_l2_vlan_memberships(&intf);
+      interface_clear_vlan_memberships(&intf);
       // L2 ACCESS mode without any VLAN assignment should reject all ingress frames
       uint16_t vlan_id = 0;
       bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr, &vlan_id);
       REQUIRE(resp == false);
     }
     SECTION("Matches port VLAN") {
-      interface_clear_l2_vlan_memberships(&intf);
+      interface_clear_vlan_memberships(&intf);
       SECTION("Matches first") {
-        interface_add_l2_vlan_membership(&intf, TEST_VLAN_ID_VALID0);
+        interface_add_vlan_membership(&intf, TEST_VLAN_ID_VALID0);
         // L2 ACCESS mode should allow ingress frames with matching VLAN ID
         uint16_t vlan_id = 0;
         bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr, &vlan_id);
@@ -235,8 +235,8 @@ TEST_CASE("L2 TRUNK Mode", "[layer2][interface][qualify]") {
         REQUIRE(vlan_id == TEST_VLAN_ID_VALID0);
       }
       SECTION("Matches Nth") {
-        interface_add_l2_vlan_membership(&intf, TEST_VLAN_ID_VALID1);
-        interface_add_l2_vlan_membership(&intf, TEST_VLAN_ID_VALID0);
+        interface_add_vlan_membership(&intf, TEST_VLAN_ID_VALID1);
+        interface_add_vlan_membership(&intf, TEST_VLAN_ID_VALID0);
         // L2 ACCESS mode should allow ingress frames with matching VLAN ID
         uint16_t vlan_id = 0;
         bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr, &vlan_id);
@@ -245,8 +245,8 @@ TEST_CASE("L2 TRUNK Mode", "[layer2][interface][qualify]") {
       }
     }
     SECTION("Does not match port VLAN") {
-      interface_clear_l2_vlan_memberships(&intf);
-      interface_add_l2_vlan_membership(&intf, TEST_VLAN_ID_INVALID);
+      interface_clear_vlan_memberships(&intf);
+      interface_add_vlan_membership(&intf, TEST_VLAN_ID_INVALID);
       SECTION("0th VLAN ID doesn't match") {
         // L2 ACCESS mode should not allow ingress frames with different VLAN ID
         uint16_t vlan_id = 0;
@@ -263,15 +263,15 @@ TEST_CASE("L2 TRUNK Mode", "[layer2][interface][qualify]") {
     ether_hdr_set_type(hdr, ETHER_TYPE_IPV4);
     // Cases
     SECTION("No assigned VLANs") {
-      interface_clear_l2_vlan_memberships(&intf);
+      interface_clear_vlan_memberships(&intf);
       // L2 TRUNK mode without any VLAN assignment should reject all ingress frames
       uint16_t vlan_id = 0;
       bool resp = layer2_qualify_recv_frame_on_interface(&intf, hdr, &vlan_id);
       REQUIRE(resp == false);
     }
     SECTION("Has assigned VLAN") {
-      interface_clear_l2_vlan_memberships(&intf);
-      interface_add_l2_vlan_membership(&intf, TEST_VLAN_ID_VALID0);
+      interface_clear_vlan_memberships(&intf);
+      interface_add_vlan_membership(&intf, TEST_VLAN_ID_VALID0);
       // L2 TRUNK mode with assigned VLANs should not accept any untagged frames.
       uint16_t vlan_id = 0;
       bool resp = layer2_qualify_recv_frame_on_interface(&intf, hdr, &vlan_id);
@@ -284,7 +284,7 @@ TEST_CASE("L2 UNKNOWN Mode", "[layer2][interface][qualify]") {
   err_logging_disable_guard_t guard; // We expect errors, so silence err logging
   // Setup L2 interface
   interface_t intf;
-  interface_enable_l2_mode(&intf, INTF_MODE_UNKNOWN);
+  interface_set_mode(&intf, INTF_MODE_L3);
   // Allocate ethernet frame in the stack itself
   uint8_t frame_buf[256] = {0};
   SECTION("Tagged frame") {

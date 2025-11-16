@@ -35,11 +35,6 @@ utils_add_executable(tcpip
           "cli.cpp"
 )
 
-utils_add_executable(nettest
-  EXTENDS tcpip_base
-  SOURCES "tests/nettest.cpp"
-)
-
 utils_add_executable(tests
   EXTENDS tcpip_tests_base
   LINKS Catch2
@@ -71,3 +66,7 @@ add_custom_command(
 )
 
 add_custom_target(copy_cmds ALL DEPENDS ${CMAKE_BINARY_DIR}/cmds.txt)
+
+
+# temporary, delete me once migration is complete
+

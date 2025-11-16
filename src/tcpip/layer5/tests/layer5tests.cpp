@@ -22,7 +22,7 @@ TEST_CASE("Ping", "[layer5][ping]") {
     NODE_NETSTACK(R1).l5.promote = [&](node_t *n, interface_t *intf, uint8_t *payload, uint32_t len, ipv4_addr_t *addr, uint32_t prot) {
       invoked = true;
     };
-    layer5_perform_ping(R1, &R1->intf[0]->netprop.ip.addr);
+    layer5_perform_ping(R1, &INTF_NETPROP(R1->intf[0]).l3.addr);
     REQUIRE(invoked == true);
   }
   SECTION("Ping to local subnet should work") {
