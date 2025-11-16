@@ -133,32 +133,32 @@ graph_t* graph_create_dual_switch_topology() {
   // H1
   node_set_loopback_address(H1, "122.1.1.1");
   node_interface_set_mode(H1, "eth0/1", INTF_MODE_L3);
-  node_interface_set_ipv4_address(H1, "eth0/1", "10.1.1.1", 24);
+  node_interface_set_ipv4_address(H1, "eth0/1", "10.0.0.1", 24);
   // H2
   node_set_loopback_address(H2, "122.1.1.2");
   node_interface_set_mode(H2, "eth0/3", INTF_MODE_L3);
-  node_interface_set_ipv4_address(H2, "eth0/3", "10.1.1.2", 24);
+  node_interface_set_ipv4_address(H2, "eth0/3", "10.0.0.2", 24);
   // H3
   node_set_loopback_address(H3, "122.1.1.3");
   node_interface_set_mode(H3, "eth0/4", INTF_MODE_L3);
-  node_interface_set_ipv4_address(H3, "eth0/4", "11.1.1.3", 24);
+  node_interface_set_ipv4_address(H3, "eth0/4", "11.0.0.3", 24);
   // H4
   node_set_loopback_address(H4, "122.1.1.4");
   node_interface_set_mode(H4, "eth0/13", INTF_MODE_L3);
-  node_interface_set_ipv4_address(H4, "eth0/13", "11.1.1.4", 24);
+  node_interface_set_ipv4_address(H4, "eth0/13", "11.0.0.4", 24);
   // H5
   node_set_loopback_address(H5, "122.1.1.5");
   node_interface_set_mode(H5, "eth0/8", INTF_MODE_L3);
-  node_interface_set_ipv4_address(H5, "eth0/8", "10.1.1.5", 24); 
+  node_interface_set_ipv4_address(H5, "eth0/8", "10.0.0.5", 24); 
   // H6
   node_set_loopback_address(H6, "122.1.1.6");
   node_interface_set_mode(H6, "eth0/11", INTF_MODE_L3);
-  node_interface_set_ipv4_address(H6, "eth0/11", "10.1.1.6", 24);
+  node_interface_set_ipv4_address(H6, "eth0/11", "10.0.0.6", 24);
   // Setup VLANs
-  vlan_t *vlan10_SW1 = node_vlan_create(SW1, 10, "svi1/10", "10.0.0.0", 24);
-  vlan_t *vlan11_SW1 = node_vlan_create(SW1, 11, "svi1/11", "11.0.0.0", 24);
-  vlan_t *vlan10_SW2 = node_vlan_create(SW2, 10, "svi1/10", "10.0.0.0", 24);
-  vlan_t *vlan11_SW2 = node_vlan_create(SW2, 11, "svi1/11", "11.0.0.0", 24);
+  vlan_t *vlan10_SW1 = node_vlan_create(SW1, 10, "svi1/10", "10.0.0.8", 24);
+  vlan_t *vlan11_SW1 = node_vlan_create(SW1, 11, "svi1/11", "11.0.0.8", 24);
+  vlan_t *vlan10_SW2 = node_vlan_create(SW2, 10, "svi1/10", "10.0.0.9", 24);
+  vlan_t *vlan11_SW2 = node_vlan_create(SW2, 11, "svi1/11", "11.0.0.9", 24);
   // Setup VLAN 10 (Access Interfaces)
   node_interface_set_mode(SW1, "eth0/2", INTF_MODE_L2_ACCESS);
   node_interface_add_vlan_membership(SW1, "eth0/2", vlan10_SW1);
@@ -209,10 +209,10 @@ graph_t *graph_create_quad_switch_loop_topology() {
   node_interface_set_mode(H6, "eth0/11", INTF_MODE_L3);
   node_interface_set_ipv4_address(H6, "eth0/11", "10.1.1.6", 24);
   // Create VLAN
-  vlan_t *vlan10_SW1 = node_vlan_create(SW1, 10, "svi1/10", "10.0.0.0", 24);
-  vlan_t *vlan10_SW2 = node_vlan_create(SW2, 10, "svi2/10", "10.0.0.0", 24);
-  vlan_t *vlan10_SW3 = node_vlan_create(SW3, 10, "svi3/10", "10.0.0.0", 24);
-  vlan_t *vlan10_SW4 = node_vlan_create(SW4, 10, "svi4/10", "10.0.0.0", 24);
+  vlan_t *vlan10_SW1 = node_vlan_create(SW1, 10, "svi1/10", "10.0.0.7", 24);
+  vlan_t *vlan10_SW2 = node_vlan_create(SW2, 10, "svi2/10", "10.0.0.8", 24);
+  vlan_t *vlan10_SW3 = node_vlan_create(SW3, 10, "svi3/10", "10.0.0.9", 24);
+  vlan_t *vlan10_SW4 = node_vlan_create(SW4, 10, "svi4/10", "10.0.0.10", 24);
   // SW1: ACCESS
   node_interface_set_mode(SW1, "eth0/2", INTF_MODE_L2_ACCESS);
   node_interface_add_vlan_membership(SW1, "eth0/2", vlan10_SW1);

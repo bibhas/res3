@@ -112,7 +112,7 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
   EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface param", false);
   EXPECT_RETURN_BOOL(ethhdr != nullptr, "Empty ethernet header param", false);
   EXPECT_RETURN_BOOL(vlan_id != nullptr, "Empty VLAN ID ptr param", false);
-  if (INTF_IN_L3_MODE(intf)) {
+  if (INTF_MODE(intf) == INTF_MODE_L3) {
     if (ETHER_HDR_VLAN_TAGGED(ethhdr)) {
       // We won't accept any VLAN tagged frames in L3 mode.
       // This is to separate the broadcast domain from spilling over.
@@ -126,7 +126,7 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
       return true;
     }
   }
-  else if (INTF_IN_L2_MODE(intf)) {
+  else if (INTF_IN_L2_MODE(intf) && INTF_MODE(intf) != INTF_MODE_L3_SVI) {
     if (INTF_NETPROP(intf).l2.vlan_memberships[0] == 0) {
       // No assigned VLAN memberships for this interface: drop frame
       return false;
@@ -164,15 +164,8 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
     }
     return false; // unreachable
   }
-  /* TODO:
-  else if (INTF_MODE(intf) == INTF_MODE_UNKNOWN) {
-    // Interface is neither configuered for L3 nor
-    // is it configured for L2 (ACCESS OR TRUNK).
-    // Reject all ingress frames.
-    return false;
-  }
-  */
-  return false; // unreachable
+  // We have received frames on an SVI, which is illegal.
+  return false; 
 }
 
 #pragma mark -
@@ -332,18 +325,9 @@ int layer2_node_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, u
 bool layer2_qualify_send_frame_on_interface(interface_t *intf, ether_hdr_t *ethhdr) {
   EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface param", false);
   EXPECT_RETURN_BOOL(ethhdr != nullptr, "Empty ethernet header param", false);
-  if (INTF_IN_L3_MODE(intf)) {
-    // We haven't implemented routing at this point.
-    // For now, we disallow any egress out of L3 interfaces.
-    // TODO: If interface is an SVI, allow (and in same VLAN?, perhaps shift code to below)
+  if (INTF_MODE(intf) == INTF_MODE_L3) {
     return false;
   }
-  /* TODO:
-  if (INTF_MODE(intf) == INTF_MODE_UNKNOWN) { // TODO: Might clash with Inter-VLAN routing
-    // Interface isn't usable. Ignore.
-    return false;
-  }
-  */
   if (!ETHER_HDR_VLAN_TAGGED(ethhdr)) {
     // Every packet being sent out must be tagged until this point.
     return false;
@@ -385,9 +369,15 @@ int layer2_switch_send_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame,
     EXPECT_CONTINUE(resp == framelen, "NODE_NETSTACK(n).phy.send failed");
     return resp;
   }
-  else {
-    // If INTF_IN_L3_MODE and SVI and in same VLAN
-    // TODO: Promote to layer2 (will handle ARP broadcast + l3 promotion)
+  else if (INTF_MODE(intf) == INTF_MODE_L3_SVI) {
+    // Strip VLAN tag before egress from L3_SVI interfaces
+    uint32_t untagged_framelen = 0;
+    ether_hdr_t *untagged_hdr = ether_hdr_untag_vlan(ether_hdr, framelen, &untagged_framelen);
+    EXPECT_RETURN_VAL(untagged_hdr != nullptr, "ether_hdr_untag_vlan failed", -1);
+    // Promote untagged frame to layer2 (will handle ARP broadcast + l3 promotion)
+    int resp = NODE_NETSTACK(n).l2.promote(n, intf, untagged_hdr, untagged_framelen);
+    EXPECT_CONTINUE(resp == untagged_framelen, "NODE_NETSTACK(n).l2.promote failed");
+    return resp;
   }
   return -1;
 }
@@ -425,9 +415,11 @@ int layer2_switch_flood_frame_bytes(node_t *n, interface_t *ignored, uint8_t *fr
       EXPECT_CONTINUE(resp == framelen, "NODE_NETSTACK(n).phy.send failed");
       acc += resp;
     }
-    else {
-      // If INTF_IN_L3_MODE and SVI and in same VLAN
-      // TODO: Promote to layer2 (will handle ARP broadcast + l3 promotion)
+    else if (INTF_MODE(intf) == INTF_MODE_L3_SVI) {
+      // Promote untagged frame to layer2 (will handle ARP broadcast + l3 promotion)
+      int resp = NODE_NETSTACK(n).l2.promote(n, intf, untagged_hdr, untagged_framelen);
+      EXPECT_CONTINUE(resp == untagged_framelen, "NODE_NETSTACK(n).l2.promote failed");
+      acc += resp;
     }
   }
   return acc; // Number of bytes sent

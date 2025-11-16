@@ -59,11 +59,12 @@ vlan_t* node_vlan_create(node_t *n, uint16_t vlanid, const char *svi_name, const
   ipv4_addr_t svi_prefix;
   resp = ipv4_addr_apply_mask(&svi_addr, svi_mask, &svi_prefix);
   EXPECT_RETURN_VAL(resp == true, "ipv4_addr_apply_mask failed", nullptr); // TODO: Leaks `svi`
-  resp = rt_add_direct_route(n->netprop.r_table, &svi_prefix, svi_mask);
+  resp = rt_add_route(n->netprop.r_table, &svi_prefix, svi_mask, &svi_addr, svi, true);
   EXPECT_RETURN_VAL(resp == true, "rt_add_direct_route failed", nullptr); // TODO: Leaks `svi`
   // And, we're done
   return vlan;
 }
+
 
 #pragma mark -
 

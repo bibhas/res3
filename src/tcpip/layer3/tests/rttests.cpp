@@ -43,11 +43,11 @@ TEST_CASE("LPM test for four entry routing table", "[layer3][rt][lpm]") {
     REQUIRE(result->prefix.ip.bytes[2] == 1);
     REQUIRE(result->prefix.ip.bytes[3] == 0);
     REQUIRE(result->prefix.mask == 24);
-    REQUIRE(result->gw_ip.bytes[0] == 80);
-    REQUIRE(result->gw_ip.bytes[1] == 0);
-    REQUIRE(result->gw_ip.bytes[2] == 0);
-    REQUIRE(result->gw_ip.bytes[3] == 3);
-    REQUIRE(strncmp(result->oif_name, "eth2/0", CONFIG_IF_NAME_SIZE) == 0);
+    REQUIRE(result->gw.ip.bytes[0] == 80);
+    REQUIRE(result->gw.ip.bytes[1] == 0);
+    REQUIRE(result->gw.ip.bytes[2] == 0);
+    REQUIRE(result->gw.ip.bytes[3] == 3);
+    REQUIRE(strncmp(result->oif.name, "eth2/0", CONFIG_IF_NAME_SIZE) == 0);
   }
   SECTION("Query 10.1.1.1 should match 10.1.1.1/32") {
     ipv4_addr_t query {.bytes={10, 1, 1, 1}};
@@ -60,11 +60,11 @@ TEST_CASE("LPM test for four entry routing table", "[layer3][rt][lpm]") {
     REQUIRE(result->prefix.ip.bytes[2] == 1);
     REQUIRE(result->prefix.ip.bytes[3] == 1);
     REQUIRE(result->prefix.mask == 32);
-    REQUIRE(result->gw_ip.bytes[0] == 80);
-    REQUIRE(result->gw_ip.bytes[1] == 0);
-    REQUIRE(result->gw_ip.bytes[2] == 0);
-    REQUIRE(result->gw_ip.bytes[3] == 4);
-    REQUIRE(strncmp(result->oif_name, "eth3/0", CONFIG_IF_NAME_SIZE) == 0);
+    REQUIRE(result->gw.ip.bytes[0] == 80);
+    REQUIRE(result->gw.ip.bytes[1] == 0);
+    REQUIRE(result->gw.ip.bytes[2] == 0);
+    REQUIRE(result->gw.ip.bytes[3] == 4);
+    REQUIRE(strncmp(result->oif.name, "eth3/0", CONFIG_IF_NAME_SIZE) == 0);
   }
   SECTION("Query 10.1.2.1 should match 10.1.0.0/16") {
     ipv4_addr_t query {.bytes={10, 1, 2, 1}};
@@ -77,11 +77,11 @@ TEST_CASE("LPM test for four entry routing table", "[layer3][rt][lpm]") {
     REQUIRE(result->prefix.ip.bytes[2] == 0);
     REQUIRE(result->prefix.ip.bytes[3] == 0);
     REQUIRE(result->prefix.mask == 16);
-    REQUIRE(result->gw_ip.bytes[0] == 80);
-    REQUIRE(result->gw_ip.bytes[1] == 0);
-    REQUIRE(result->gw_ip.bytes[2] == 0);
-    REQUIRE(result->gw_ip.bytes[3] == 2);
-    REQUIRE(strncmp(result->oif_name, "eth1/0", CONFIG_IF_NAME_SIZE) == 0);
+    REQUIRE(result->gw.ip.bytes[0] == 80);
+    REQUIRE(result->gw.ip.bytes[1] == 0);
+    REQUIRE(result->gw.ip.bytes[2] == 0);
+    REQUIRE(result->gw.ip.bytes[3] == 2);
+    REQUIRE(strncmp(result->oif.name, "eth1/0", CONFIG_IF_NAME_SIZE) == 0);
   }
   SECTION("Query 10.2.0.1 should match 10.0.0.0/8") {
     ipv4_addr_t query {.bytes={10, 2, 0, 1}};
@@ -94,11 +94,11 @@ TEST_CASE("LPM test for four entry routing table", "[layer3][rt][lpm]") {
     REQUIRE(result->prefix.ip.bytes[2] == 0);
     REQUIRE(result->prefix.ip.bytes[3] == 0);
     REQUIRE(result->prefix.mask == 8);
-    REQUIRE(result->gw_ip.bytes[0] == 80);
-    REQUIRE(result->gw_ip.bytes[1] == 0);
-    REQUIRE(result->gw_ip.bytes[2] == 0);
-    REQUIRE(result->gw_ip.bytes[3] == 1);
-    REQUIRE(strncmp(result->oif_name, "eth0/0", CONFIG_IF_NAME_SIZE) == 0);
+    REQUIRE(result->gw.ip.bytes[0] == 80);
+    REQUIRE(result->gw.ip.bytes[1] == 0);
+    REQUIRE(result->gw.ip.bytes[2] == 0);
+    REQUIRE(result->gw.ip.bytes[3] == 1);
+    REQUIRE(strncmp(result->oif.name, "eth0/0", CONFIG_IF_NAME_SIZE) == 0);
   }
   SECTION("Query 11.0.0.1 should not match any entry") {
     err_logging_disable_guard_t guard; // We expect errors, so silence err logging
@@ -157,11 +157,11 @@ TEST_CASE("Duplicate entry in routing table", "[layer3][rt][duplicate]") {
     REQUIRE(result->prefix.ip.bytes[3] == 0);
     REQUIRE(result->prefix.mask == 24);
     // Check that it still has the ORIGINAL gateway (gw1), not the new one (gw2)
-    REQUIRE(result->gw_ip.bytes[0] == 192);
-    REQUIRE(result->gw_ip.bytes[1] == 168);
-    REQUIRE(result->gw_ip.bytes[2] == 1);
-    REQUIRE(result->gw_ip.bytes[3] == 1);
+    REQUIRE(result->gw.ip.bytes[0] == 192);
+    REQUIRE(result->gw.ip.bytes[1] == 168);
+    REQUIRE(result->gw.ip.bytes[2] == 1);
+    REQUIRE(result->gw.ip.bytes[3] == 1);
     // Check that it still has the ORIGINAL interface (eth0/0), not the new one (eth1/0)
-    REQUIRE(strncmp(result->oif_name, "eth0/0", CONFIG_IF_NAME_SIZE) == 0);
+    REQUIRE(strncmp(result->oif.name, "eth0/0", CONFIG_IF_NAME_SIZE) == 0);
   }
 }

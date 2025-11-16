@@ -58,14 +58,37 @@ void layer3_recv_ipv4_pkt(node_t *n, interface_t *intf, ipv4_hdr_t *hdr, uint32_
   // Not direct route?
   if (!rt_entry->is_direct) {
     // Update dst ip (to gateway ip) and hand it over to L2 for forwarding
-    interface_t *ointf = node_get_interface_by_name(n, (const char *)rt_entry->oif_name);
+    EXPECT_RETURN(rt_entry->oif.configured, "Missing OIF name in RT entry");
+    EXPECT_RETURN(rt_entry->gw.configured, "Missing GW IP address in RT entry");
+    interface_t *ointf = node_get_interface_by_name(n, (const char *)rt_entry->oif.name);
     EXPECT_RETURN(ointf != nullptr, "node_get_interface_by_name failed");
     ipv4_hdr_set_ttl(hdr, ipv4_hdr_read_ttl(hdr) - 1);
     if (ipv4_hdr_read_ttl(hdr) == 0) {
       printf("TTL == 0\n");
       return; // drop 
     }
-    NODE_NETSTACK(n).l2.demote(n, &rt_entry->gw_ip, ointf, (uint8_t *)hdr, pktlen, ETHER_TYPE_IPV4);
+    NODE_NETSTACK(n).l2.demote(n, &rt_entry->gw.ip, ointf, (uint8_t *)hdr, pktlen, ETHER_TYPE_IPV4);
+    return;
+  }
+  else if (rt_entry->is_direct && rt_entry->oif.configured) {
+    // SVI routes are direct but have a specified outgoing interface
+    interface_t *ointf = node_get_interface_by_name(n, (const char *)rt_entry->oif.name);
+    EXPECT_RETURN(ointf != nullptr, "node_get_interface_by_name failed");
+    EXPECT_RETURN(INTF_MODE(ointf) == INTF_MODE_L3_SVI, "Encountered non-SVI local interface!");
+    ipv4_hdr_set_ttl(hdr, ipv4_hdr_read_ttl(hdr) - 1);
+    if (ipv4_hdr_read_ttl(hdr) == 0) {
+      printf("TTL == 0\n");
+      return; // drop 
+    }
+    if (rt_entry->gw.configured) {
+      // A GW address has been configured for this SVI (use that as the next hop)
+      NODE_NETSTACK(n).l2.demote(n, &rt_entry->gw.ip, ointf, (uint8_t *)hdr, pktlen, ETHER_TYPE_IPV4);
+    }
+    else {
+      // No GW address has been configured for this SVI. In this we expect the destination to be within the
+      // broadcast domain. Use that as the next hop address.
+      NODE_NETSTACK(n).l2.demote(n, &dst_addr, ointf, (uint8_t *)hdr, pktlen, ETHER_TYPE_IPV4);
+    }
     return;
   }
   // Local address?
@@ -127,8 +150,8 @@ bool layer3_resolve_next_hop(node_t *n, ipv4_addr_t *dst_addr, ipv4_addr_t **hop
     }
   }
   else {
-    next_hop_addr = &entry->gw_ip;
-    intf = node_get_interface_by_name(n, entry->oif_name);
+    next_hop_addr = &entry->gw.ip;
+    intf = node_get_interface_by_name(n, entry->oif.name);
     EXPECT_RETURN_BOOL(intf != nullptr, "node_get_interface_by_name failed", false);
   }
   *ointf = intf;
@@ -150,7 +173,7 @@ bool layer3_resolve_src_for_dst(node_t *n, ipv4_addr_t *dst_addr, ipv4_addr_t **
     return false;
   }
   if (!entry->is_direct) {
-    interface_t *intf = node_get_interface_by_name(n, entry->oif_name);
+    interface_t *intf = node_get_interface_by_name(n, entry->oif.name);
     if (ointf) {
       *ointf = intf;
     }
