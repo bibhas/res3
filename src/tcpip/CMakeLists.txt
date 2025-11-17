@@ -6,8 +6,11 @@ set(common_sources
   "topo.cpp"
   "pcap.cpp"
   # Layer 2
-  "layer2/layer2.cpp"
-  "layer2/arp.cpp"
+  "layer2/layer2_io.cpp"
+  "layer2/layer2_vlan.cpp"
+  "layer2/layer2_switch.cpp"
+  "layer2/layer2_arp.cpp"
+  "layer2/arp_table.cpp"
   "layer2/mac.cpp"
   # Layer 3
   "layer3/layer3.cpp"

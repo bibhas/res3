@@ -5,7 +5,9 @@
 #include <cstring>
 #include "pcap.h"
 #include "layer2/layer2.h"
-#include "layer2/arp.h"
+#include "layer2/arp_hdr.h"
+#include "layer2/ether_hdr.h"
+#include "layer2/vlan_tag.h"
 #include "utils.h"
 
 void test_pcap_dump_untagged_arp_request() {

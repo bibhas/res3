@@ -31,8 +31,8 @@ struct node_netstack_t {
     layer3_demote_fn_t demote     = &__layer3_demote;
   } l3;
   struct {
-    layer2_promote_fn_t promote   = &__layer2_promote;
-    layer2_demote_fn_t demote     = &__layer2_demote;
+    layer2_promote_fn_t promote   = &layer2_promote;
+    layer2_demote_fn_t demote     = &layer2_demote;
   } l2;
   struct {
     phy_send_frame_fn_t send      = &__phy_node_send_frame_bytes;

@@ -2,7 +2,7 @@
 
 #include <arpa/inet.h>
 #include "catch2.hpp"
-#include "arp.h"
+#include "arp_table.h"
 #include "net.h"
 #include "graph.h"
 

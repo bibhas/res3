@@ -2,8 +2,9 @@
 
 #include <arpa/inet.h>
 #include "pcap.h"
-#include "layer2/layer2.h"
-#include "layer2/arp.h"
+#include "layer2/arp_hdr.h"
+#include "layer2/ether_hdr.h"
+#include "layer2/vlan_tag.h"
 #include "layer3/layer3.h"
 #include "utils.h"
 

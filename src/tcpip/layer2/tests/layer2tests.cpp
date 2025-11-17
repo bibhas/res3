@@ -4,6 +4,9 @@
 #include "layer2.h"
 #include "phy.h"
 #include "graph.h"
+#include "ether_hdr.h"
+#include "vlan_tag.h"
+#include "arp_hdr.h"
 
 extern bool phy_frame_buffer_shift_right(uint8_t **pktptr, uint32_t pktlen, uint32_t buflen);
 
@@ -84,7 +87,7 @@ TEST_CASE("L3 Mode", "[layer2][interface][qualify]") {
     ether_hdr_t *hdr = (ether_hdr_t *)(frame_buf + sizeof(vlan_tag_t));
     ether_hdr_set_dst_mac(hdr, &TEST_MAC_ADDR0);
     ether_hdr_set_type(hdr, ETHER_TYPE_IPV4);
-    ether_hdr_t *tagged_hdr = ether_hdr_tag_vlan(hdr, sizeof(ether_hdr_t), 100);
+    ether_hdr_t *tagged_hdr = ether_hdr_tag_vlan(hdr, sizeof(ether_hdr_t), 100, nullptr);
     // L3 interfaces should reject tagged frames
     uint16_t vlan_id = 0;
     bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr, &vlan_id);
@@ -137,7 +140,7 @@ TEST_CASE("L2 ACCESS Mode", "[layer2][interface][qualify]") {
     ether_hdr_t *hdr = (ether_hdr_t *)(frame_buf + sizeof(vlan_tag_t));
     ether_hdr_set_dst_mac(hdr, &TEST_MAC_ADDR0);
     ether_hdr_set_type(hdr, ETHER_TYPE_IPV4);
-    ether_hdr_t *tagged_hdr = ether_hdr_tag_vlan(hdr, sizeof(ether_hdr_t), TEST_VLAN_ID_VALID0);
+    ether_hdr_t *tagged_hdr = ether_hdr_tag_vlan(hdr, sizeof(ether_hdr_t), TEST_VLAN_ID_VALID0, nullptr);
     // Cases
     SECTION("No assigned VLANs") {
       interface_clear_vlan_memberships(&intf);
@@ -215,7 +218,7 @@ TEST_CASE("L2 TRUNK Mode", "[layer2][interface][qualify]") {
     ether_hdr_t *hdr = (ether_hdr_t *)(frame_buf + sizeof(vlan_tag_t));
     ether_hdr_set_dst_mac(hdr, &TEST_MAC_ADDR0);
     ether_hdr_set_type(hdr, ETHER_TYPE_IPV4);
-    ether_hdr_t *tagged_hdr = ether_hdr_tag_vlan(hdr, sizeof(ether_hdr_t), TEST_VLAN_ID_VALID0);
+    ether_hdr_t *tagged_hdr = ether_hdr_tag_vlan(hdr, sizeof(ether_hdr_t), TEST_VLAN_ID_VALID0, nullptr);
     // Cases
     SECTION("No assigned VLANs") {
       interface_clear_vlan_memberships(&intf);
@@ -293,7 +296,7 @@ TEST_CASE("L2 UNKNOWN Mode", "[layer2][interface][qualify]") {
     ether_hdr_t *hdr = (ether_hdr_t *)(frame_buf + sizeof(vlan_tag_t));
     ether_hdr_set_dst_mac(hdr, &TEST_MAC_ADDR0);
     ether_hdr_set_type(hdr, ETHER_TYPE_IPV4);
-    ether_hdr_t *tagged_hdr = ether_hdr_tag_vlan(hdr, sizeof(ether_hdr_t), TEST_VLAN_ID_VALID0);
+    ether_hdr_t *tagged_hdr = ether_hdr_tag_vlan(hdr, sizeof(ether_hdr_t), TEST_VLAN_ID_VALID0, nullptr);
     // UNKNOWN mode must reject all ingress frames
     uint16_t vlan_id = 0;
     bool resp = layer2_qualify_recv_frame_on_interface(&intf, tagged_hdr, &vlan_id);

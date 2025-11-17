@@ -4,7 +4,7 @@
 #include "graph.h"
 #include "net.h"
 #include "mac.h"
-#include "layer2.h"
+#include "ether_hdr.h"
 #include "phy.h"
 
 #pragma mark -

@@ -1,7 +1,7 @@
 // layer3.cpp
 
 #include "layer3.h"
-#include "layer2/layer2.h"
+#include "layer2/ether_hdr.h"
 #include "layer5/layer5.h"
 #include "graph.h"
 #include "phy.h"
