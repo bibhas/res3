@@ -173,7 +173,8 @@ bool arp_table_process_reply(arp_table_t *t, arp_hdr_t *hdr, interface_t *intf) 
   ipv4_addr_t ip_addr = arp_hdr_read_src_ip(hdr);
   if (!arp_table_lookup(t, &ip_addr, &arp_entry)) {
     // We got an arp reply for request we didn't put out
-    return false;
+    // This is normal in switched networks (flooded ARP replies)
+    return true;
   }
   EXPECT_RETURN_BOOL(arp_entry_is_resolved(arp_entry) == false, "Got reply for resolved entry", false);
   // Fil out entry with new new info in the reply
