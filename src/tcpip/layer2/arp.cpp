@@ -26,12 +26,12 @@ bool node_arp_send_broadcast_request(node_t *n, interface_t *intf, ipv4_addr_t *
   }
   // Allocate Ethernet frame wide enough to fit the ARP header
   uint32_t framelen = sizeof(ether_hdr_t) + sizeof(arp_hdr_t);
-  ether_hdr_t *ether_hdr = (ether_hdr_t *)calloc(1, framelen);
+  ether_hdr_t *ether_hdr = (ether_hdr_t *)calloc(1, framelen + sizeof(vlan_tag_t)); // Extra room for possible tag
   // Send function (with SVIs, we will need to forward frames via multiple interfaces in the VLAN)
-  auto send_fn = [&](interface_t *ointf) -> bool {
+  auto send_fn = [&](interface_t *ointf, uint16_t vlan_id) -> bool {
     /*
     printf(
-      "Sending broadcast request using interface: %s, for ip: " IPV4_ADDR_FMT "\n", 
+      "Sending broadcast request using interface: %s, for ip: " IPV4_ADDR_FMT "\n",
       ointf->if_name, IPV4_ADDR_BYTES_BE(*ip_addr)
     );
     */
@@ -41,8 +41,23 @@ bool node_arp_send_broadcast_request(node_t *n, interface_t *intf, ipv4_addr_t *
     mac_addr_fill_broadcast(&broadcast_mac);           // broadcast MAC address
     ether_hdr_set_dst_mac(ether_hdr, &broadcast_mac);
     ether_hdr_set_type(ether_hdr, ETHER_TYPE_ARP);
-    // Fill out ARP header fields
     arp_hdr_t *arp_hdr = (arp_hdr_t *)(ether_hdr + 1);
+    uint32_t actual_framelen = framelen;
+    // In case of L2 TRUNK interface, we need to tag the frame
+    if (INTF_MODE(ointf) == INTF_MODE_L2_TRUNK) {
+      printf("Tagging TRUNK frame with VLAN: %u\n", vlan_id);
+      vlan_tag_t *tag = (vlan_tag_t *)(ether_hdr + 1);
+      vlan_tag_set_vlan_id(tag, vlan_id);
+      // Copy ether_type to type
+      vlan_tag_set_ether_type(tag, ETHER_TYPE_ARP);
+      // Set frame type to VLAN
+      ether_hdr_set_type(ether_hdr, ETHER_TYPE_VLAN);
+      // Update arp_hdr offset
+      arp_hdr = (arp_hdr_t *)(tag + 1);
+      // Update frame length to include VLAN tag
+      actual_framelen += sizeof(vlan_tag_t);
+    }
+    // Fill out ARP header fields
     arp_hdr_set_hw_type(arp_hdr, ARP_HW_TYPE_ETHERNET);
     arp_hdr_set_proto_type(arp_hdr, ETHER_TYPE_IPV4);  // PTYPE shares field values with ETHER_TYPE
     arp_hdr_set_hw_addr_len(arp_hdr, 6);               // 6 byte MAC address
@@ -53,8 +68,8 @@ bool node_arp_send_broadcast_request(node_t *n, interface_t *intf, ipv4_addr_t *
     arp_hdr_set_dst_mac(arp_hdr, MAC_ADDR_PTR_ZEROED);
     arp_hdr_set_dst_ip(arp_hdr, ip_addr->value); // <- The IPv4 address for which we want to know the MAC address
     // Pass frame to layer 1
-    int resp = NODE_NETSTACK(n).phy.send(n, ointf, (uint8_t *)ether_hdr, framelen);
-    EXPECT_RETURN_BOOL((uint32_t)resp == framelen, "NODE_NETSTACK(n).phy.send failed", false);
+    int resp = NODE_NETSTACK(n).phy.send(n, ointf, (uint8_t *)ether_hdr, actual_framelen);
+    EXPECT_RETURN_BOOL((uint32_t)resp == actual_framelen, "NODE_NETSTACK(n).phy.send failed", false);
     return true;
   };
   if (INTF_MODE(intf) == INTF_MODE_L3_SVI) {
@@ -66,12 +81,12 @@ bool node_arp_send_broadcast_request(node_t *n, interface_t *intf, ipv4_addr_t *
       if (!interface_test_vlan_membership(candidate, vlan_id)) { continue; } // Not in VLAN
       if (!INTF_IN_L2_MODE(candidate)) { continue; }
       if (INTF_MODE(candidate) == INTF_MODE_L3_SVI) { continue; } // This isn't possible, still, just for sanity
-      bool resp = send_fn(candidate);
+      bool resp = send_fn(candidate, vlan_id);
       EXPECT_RETURN_BOOL(resp == true, "senf_fn failed", false);
     }
   }
   else {
-    bool resp = send_fn(intf);
+    bool resp = send_fn(intf, 0);
     EXPECT_RETURN_BOOL(resp == true, "senf_fn failed", false);
   }
   free(ether_hdr);
@@ -89,6 +104,7 @@ bool node_arp_recv_broadcast_request_frame(node_t *n, interface_t *iintf, ether_
       return node_arp_send_reply_frame(n, iintf, hdr);
     }
   }
+  printf("[%s] ARP broadcast request ignored (%s)\n", n->node_name, iintf->if_name);
   // Ignore packet
   // Note, this is not strictly an error, which is why we return a true return value.
   return true; // TODO: Add log / counter to record dropped frame statistics

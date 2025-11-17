@@ -117,6 +117,7 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
     if (ETHER_HDR_VLAN_TAGGED(ethhdr)) {
       // We won't accept any VLAN tagged frames in L3 mode.
       // This is to separate the broadcast domain from spilling over.
+      printf("Reject: L3 and tagged\n");
       return false; 
     }
     // We will only respond if the frame is specially intended for this
@@ -130,6 +131,7 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
   else if (INTF_IN_L2_MODE(intf) && INTF_MODE(intf) != INTF_MODE_L3_SVI) {
     if (INTF_NETPROP(intf).l2.vlan_memberships[0] == 0) {
       // No assigned VLAN memberships for this interface: drop frame
+      printf("Reject: NO interface VLAN membership\n");
       return false;
     }
     if (INTF_MODE(intf) == INTF_MODE_L2_ACCESS) {
@@ -137,6 +139,7 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
         // We're dealing with a tagged frame
         vlan_tag_t *tag = (vlan_tag_t *)(ethhdr + 1);
         if (!interface_test_vlan_membership(intf, vlan_tag_read_vlan_id(tag))) {
+          printf("Reject: L2 ACCESS got tagged frame\n");
           return false; // tag VLAN id does not match interface's VLAN
         }
         *vlan_id = vlan_tag_read_vlan_id(tag);
@@ -153,20 +156,24 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
       if (!ETHER_HDR_VLAN_TAGGED(ethhdr)) {
         // TRUNK interfaces must reject all untagged frames
         // regardless of interface VLAN membership(s)
+        printf("Reject: TRUNK got untagged frame\n");
         return false;
       }
       // We're dealing with a tagged frame
       vlan_tag_t *tag = (vlan_tag_t *)(ethhdr + 1);
       if (!interface_test_vlan_membership(intf, vlan_tag_read_vlan_id(tag))) {
+        printf("Reject: Trunk got foreign VLAN frame\n");
         return false; // tag VLAN id does not match interface's VLAN(s)
       }
       *vlan_id = vlan_tag_read_vlan_id(tag);
       return true;
     }
+    printf("Reject: unrechable\n");
     return false; // unreachable
   }
   // We have received frames on an SVI, which is illegal.
-  return false; 
+  printf("Reject: SVI??\n");
+  return true; // TODO: Change this
 }
 
 #pragma mark -
@@ -196,10 +203,16 @@ int __layer2_promote(node_t *n, interface_t *iintf, ether_hdr_t *ether_hdr, uint
       }
     }
   }
-  else if (hdr_type == ETHER_TYPE_IPV4) {
+  mac_addr_t dst_mac = ether_hdr_read_dst_mac(ether_hdr);
+  if (INTF_MODE(iintf) == INTF_MODE_L3_SVI && !MAC_ADDR_IS_EQUAL(dst_mac, INTF_NETPROP(iintf).l2.mac_addr)) {
+    printf("Droped because " MAC_ADDR_FMT " != " MAC_ADDR_FMT "\n", MAC_ADDR_BYTES_BE(dst_mac), MAC_ADDR_BYTES_BE(INTF_NETPROP(iintf).l2.mac_addr));
+    return framelen; // We can't process any frames not intended for us is this is an SVI
+  }
+  if (hdr_type == ETHER_TYPE_IPV4) {
     // We need to delegate processing of this packet to L3
     uint8_t *pkt = (uint8_t *)(ether_hdr + 1);
     uint32_t pktlen = framelen - sizeof(ether_hdr_t); // We ignore FCS
+    printf("l3 promote...\n");
     NODE_NETSTACK(n).l3.promote(n, iintf, pkt, pktlen, hdr_type);
     return framelen;
   }
@@ -210,6 +223,7 @@ int __layer2_promote(node_t *n, interface_t *iintf, ether_hdr_t *ether_hdr, uint
 }
 
 void __layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, uint8_t *payload, uint32_t paylen, uint16_t ethertype) {
+  printf("l2 demote (ointf: %s)..\n", ointf->if_name);
   EXPECT_RETURN(n != nullptr, "Empty node param");
   EXPECT_RETURN(nxt_hop_addr != nullptr, "Empty next hop address param");
   // We will to handle ointf == nullptr case manually
@@ -251,6 +265,7 @@ void __layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, u
   arp_table_t *t = n->netprop.arp_table;
   arp_entry_t *arp_entry = nullptr;
   if (!arp_table_lookup(t, nxt_hop_addr, &arp_entry)) {
+    printf("arp lookup...\n");
     // No entry found. Create unresolved entry with pending lookups and send out ARP broadcast.
     bool resp = arp_table_add_unresolved_entry(t, nxt_hop_addr, &arp_entry);
     EXPECT_RETURN(resp == true, "arp_table_add_unresolved_entry failed");
@@ -263,6 +278,7 @@ void __layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, u
     EXPECT_RETURN(resp == true, "node_arp_send_broadcast_request failed");
   }
   else if (!arp_entry_is_resolved(arp_entry)) {
+    printf("arp pending...\n");
     // Entry found, but it is pending
     uint8_t *hdr_payload = payload - sizeof(ether_hdr_t);
     uint32_t hdr_paylen = paylen + sizeof(ether_hdr_t);
@@ -270,6 +286,7 @@ void __layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, u
     EXPECT_RETURN(resp == true, "arp_entry_add_pending_lookup failed");
   }
   else {
+    printf("arp found...\n");
     // Found resolved entry
     mac_addr_t *dst_mac = &arp_entry->mac_addr;
     mac_addr_t *src_mac = INTF_MAC_PTR(ointf);
@@ -329,10 +346,12 @@ bool layer2_qualify_send_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
   EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface param", false);
   EXPECT_RETURN_BOOL(ethhdr != nullptr, "Empty ethernet header param", false);
   if (INTF_MODE(intf) == INTF_MODE_L3) {
+    printf("Reject: L3 mode (%s)\n", intf->if_name);
     return false;
   }
   if (!ETHER_HDR_VLAN_TAGGED(ethhdr)) {
     // Every packet being sent out must be tagged until this point.
+    printf("Reject: Untagged (%s)\n", intf->if_name);
     return false;
   }
   vlan_tag_t *tag = (vlan_tag_t *)(ethhdr + 1);
@@ -341,6 +360,7 @@ bool layer2_qualify_send_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
     // Not part of the intended VLAN. Enforce separation.
     // Note that for TRUNK interfaces, this checks against
     // all registered VLAN memberships.
+    printf("Reject: VLAN (%s, %u vs %u)\n", intf->if_name, vlan_id, INTF_NETPROP(intf).l2.vlan_memberships[0]);
     return false;
   }
   return true;

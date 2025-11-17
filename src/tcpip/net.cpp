@@ -61,10 +61,16 @@ vlan_t* node_vlan_create(node_t *n, uint16_t vlanid, const char *svi_name, const
   EXPECT_RETURN_VAL(resp == true, "ipv4_addr_apply_mask failed", nullptr); // TODO: Leaks `svi`
   resp = rt_add_route(n->netprop.r_table, &svi_prefix, svi_mask, &svi_addr, svi, true);
   EXPECT_RETURN_VAL(resp == true, "rt_add_direct_route failed", nullptr); // TODO: Leaks `svi`
+  // Add SVI to mac table as well
+  mac_entry_t entry = {0};
+  entry.mac_addr = INTF_NETPROP(svi).l2.mac_addr;
+  strncpy((char *)entry.oif_name, (char *)svi_name, CONFIG_IF_NAME_SIZE);
+  glthread_init(&entry.mac_table_glue);
+  resp = mac_table_add_entry(n->netprop.mac_table, &entry);
+  EXPECT_RETURN_VAL(resp == true, "mac_table_add_entry failed", nullptr);
   // And, we're done
   return vlan;
 }
-
 
 #pragma mark -
 

@@ -87,10 +87,11 @@ void phy_receiver_thread_main(graph_t *topo) {
         memset(__recv_buffer, 0, CONFIG_MAX_PACKET_BUFFER_SIZE);
         struct sockaddr_in sender;
         size_t bytes = recvfrom(n->udp.fd, (char *)__recv_buffer, CONFIG_MAX_PACKET_BUFFER_SIZE, 0, (struct sockaddr *)&sender, &addrlen);
-        printf("[%s] Read %lu bytes\n", n->node_name, bytes);
         EXPECT_FATAL(bytes >= 0, "recvfrom failed");
         // Do something with received data
         char *target_intf_name = (char *)__recv_buffer; // of size IF_NAME_SIZE
+        printf("[%s] Read %lu bytes on %s\n", n->node_name, bytes, target_intf_name);
+        pcap_pkt_dump(__recv_buffer + CONFIG_IF_NAME_SIZE, bytes - CONFIG_IF_NAME_SIZE);
         interface_t *target_intf = node_get_interface_by_name(n, target_intf_name);
         EXPECT_CONTINUE(target_intf != nullptr, "Packet received on unknown interface");
         resp = phy_node_receive_interface_frame_bytes(n, target_intf, __recv_buffer + CONFIG_IF_NAME_SIZE, bytes - CONFIG_IF_NAME_SIZE);
