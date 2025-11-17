@@ -50,6 +50,14 @@ struct err_logging_disable_guard_t {
 #define SET_ERR_STREAM(f) (__err.file = (f))
 #define LOG_ERR(...) do { if (!__err.silent.load()) fprintf(__err.file,"[ERR] " __VA_ARGS__); } while(0)
 
+#define DEBUG 0
+
+#if DEBUG
+#define LOG_DEBUG(...) do { if (!__err.silent.load()) fprintf(__err.file,"[DEBUG] " __VA_ARGS__); } while(0)
+#else
+#define LOG_DEBUG(...) 
+#endif
+
 #define EXPECT_FATAL(c,m) do { if(!(c)){LOG_ERR("%s\n",m);exit(EXIT_FAILURE);} } while(0)
 #define EXPECT_RETURN_BOOL(c,m,r) do { if(!(c)){LOG_ERR("%s\n",m);return(r);} } while(0)
 #define EXPECT_RETURN_VAL(c,m,r) EXPECT_RETURN_BOOL(c,m,r)

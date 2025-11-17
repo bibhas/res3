@@ -64,7 +64,7 @@ bool node_arp_send_broadcast_request(node_t *n, interface_t *intf, ipv4_addr_t *
     uint32_t actual_framelen = framelen;
     // In case of L2 TRUNK interface, we need to tag the frame
     if (INTF_MODE(ointf) == INTF_MODE_L2_TRUNK) {
-      printf("Tagging TRUNK frame with VLAN: %u\n", vlan_id);
+      LOG_DEBUG("Tagging TRUNK frame with VLAN: %u\n", vlan_id);
       vlan_tag_t *tag = (vlan_tag_t *)(ether_hdr + 1);
       vlan_tag_set_vlan_id(tag, vlan_id);
       // Copy ether_type to type
@@ -125,7 +125,7 @@ bool node_arp_recv_broadcast_request_frame(node_t *n, interface_t *iintf, ether_
       return node_arp_send_reply_frame(n, iintf, hdr);
     }
   }
-  printf("[%s] ARP broadcast request ignored (%s)\n", n->node_name, iintf->if_name);
+  LOG_DEBUG("[%s] ARP broadcast request ignored (%s)\n", n->node_name, iintf->if_name);
   // Ignore packet
   // Note, this is not strictly an error, which is why we return a true return value.
   return true; // TODO: Add log / counter to record dropped frame statistics

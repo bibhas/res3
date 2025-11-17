@@ -62,12 +62,12 @@ bool layer2_switch_qualify_send_frame_on_interface(interface_t *intf, ether_hdr_
   EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface param", false);
   EXPECT_RETURN_BOOL(ethhdr != nullptr, "Empty ethernet header param", false);
   if (INTF_MODE(intf) == INTF_MODE_L3) {
-    printf("Reject: L3 mode (%s)\n", intf->if_name);
+    LOG_DEBUG("Reject: L3 mode (%s)\n", intf->if_name);
     return false;
   }
   if (!ETHER_HDR_VLAN_TAGGED(ethhdr)) {
     // Every packet being sent out must be tagged until this point.
-    printf("Reject: Untagged (%s)\n", intf->if_name);
+    LOG_DEBUG("Reject: Untagged (%s)\n", intf->if_name);
     return false;
   }
   vlan_tag_t *tag = (vlan_tag_t *)(ethhdr + 1);
@@ -76,7 +76,7 @@ bool layer2_switch_qualify_send_frame_on_interface(interface_t *intf, ether_hdr_
     // Not part of the intended VLAN. Enforce separation.
     // Note that for TRUNK interfaces, this checks against
     // all registered VLAN memberships.
-    printf("Reject: VLAN (%s, %u vs %u)\n", intf->if_name, vlan_id, INTF_NETPROP(intf).l2.vlan_memberships[0]);
+    LOG_DEBUG("Reject: VLAN (%s, %u vs %u)\n", intf->if_name, vlan_id, INTF_NETPROP(intf).l2.vlan_memberships[0]);
     return false;
   }
   return true;

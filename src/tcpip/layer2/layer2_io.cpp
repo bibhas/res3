@@ -63,7 +63,7 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
     if (ETHER_HDR_VLAN_TAGGED(ethhdr)) {
       // We won't accept any VLAN tagged frames in L3 mode.
       // This is to separate the broadcast domain from spilling over.
-      printf("Reject: L3 and tagged\n");
+      LOG_DEBUG("Reject: L3 and tagged\n");
       return false;
     }
     // We will only respond if the frame is specially intended for this
@@ -74,13 +74,13 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
       return true;
     }
     // Frame not addressed to us - reject it
-    printf("Reject: L3 MAC mismatch\n");
+    LOG_DEBUG("Reject: L3 MAC mismatch\n");
     return false;
   }
   else if (INTF_MODE(intf) == INTF_MODE_L2_ACCESS || INTF_MODE(intf) == INTF_MODE_L2_TRUNK) {
     if (INTF_NETPROP(intf).l2.vlan_memberships[0] == 0) {
       // No assigned VLAN memberships for this interface: drop frame
-      printf("Reject: NO interface VLAN membership\n");
+      LOG_DEBUG("Reject: NO interface VLAN membership\n");
       return false;
     }
     if (INTF_MODE(intf) == INTF_MODE_L2_ACCESS) {
@@ -88,7 +88,7 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
         // We're dealing with a tagged frame
         vlan_tag_t *tag = (vlan_tag_t *)(ethhdr + 1);
         if (!interface_test_vlan_membership(intf, vlan_tag_read_vlan_id(tag))) {
-          printf("Reject: L2 ACCESS got tagged frame\n");
+          LOG_DEBUG("Reject: L2 ACCESS got tagged frame\n");
           return false; // tag VLAN id does not match interface's VLAN
         }
         *vlan_id = vlan_tag_read_vlan_id(tag);
@@ -105,23 +105,23 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
       if (!ETHER_HDR_VLAN_TAGGED(ethhdr)) {
         // TRUNK interfaces must reject all untagged frames
         // regardless of interface VLAN membership(s)
-        printf("Reject: TRUNK got untagged frame\n");
+        LOG_DEBUG("Reject: TRUNK got untagged frame\n");
         return false;
       }
       // We're dealing with a tagged frame
       vlan_tag_t *tag = (vlan_tag_t *)(ethhdr + 1);
       if (!interface_test_vlan_membership(intf, vlan_tag_read_vlan_id(tag))) {
-        printf("Reject: Trunk got foreign VLAN frame\n");
+        LOG_DEBUG("Reject: Trunk got foreign VLAN frame\n");
         return false; // tag VLAN id does not match interface's VLAN(s)
       }
       *vlan_id = vlan_tag_read_vlan_id(tag);
       return true;
     }
-    printf("Reject: unreachable\n");
+    LOG_DEBUG("Reject: unreachable\n");
     return false; // unreachable
   }
   // We have received frames on an SVI, which is illegal.
-  printf("Reject: SVI??\n");
+  LOG_DEBUG("Reject: SVI??\n");
   return true; // TODO: Change this
 }
 
@@ -143,14 +143,14 @@ int layer2_promote(node_t *n, interface_t *iintf, ether_hdr_t *ether_hdr, uint32
         return framelen;
       }
       default: {
-        printf("Unknown ARP op code received! Ignoring...\n");
+        LOG_DEBUG("Unknown ARP op code received! Ignoring...\n");
         return -1;
       }
     }
   }
   mac_addr_t dst_mac = ether_hdr_read_dst_mac(ether_hdr);
   if (INTF_MODE(iintf) == INTF_MODE_L3_SVI && !MAC_ADDR_IS_EQUAL(dst_mac, INTF_NETPROP(iintf).l2.mac_addr)) {
-    printf(
+    LOG_DEBUG(
       "Droped because " MAC_ADDR_FMT " != " MAC_ADDR_FMT "\n", 
       MAC_ADDR_BYTES_BE(dst_mac), MAC_ADDR_BYTES_BE(INTF_NETPROP(iintf).l2.mac_addr)
     );
