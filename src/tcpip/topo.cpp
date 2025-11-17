@@ -126,7 +126,7 @@ graph_t* graph_create_dual_switch_topology() {
   link_nodes(H1, SW1, "eth0/1", "eth0/2", 1);
   link_nodes(H2, SW1, "eth0/3", "eth0/7", 1);
   link_nodes(H3, SW1, "eth0/4", "eth0/6", 1);
-  link_nodes(SW1, SW2, "eth0/5", "eth0/7", 1);
+  link_nodes(SW1, SW2, "eth0/5", "eth0/14", 1);
   link_nodes(H5, SW2, "eth0/8", "eth0/9", 1);
   link_nodes(H4, SW2, "eth0/13", "eth0/12", 1);
   link_nodes(H6, SW2, "eth0/11", "eth0/10", 1);
@@ -157,8 +157,8 @@ graph_t* graph_create_dual_switch_topology() {
   // Setup VLANs
   vlan_t *vlan10_SW1 = node_vlan_create(SW1, 10, "svi1/10", "10.0.0.8", 24);
   vlan_t *vlan11_SW1 = node_vlan_create(SW1, 11, "svi1/11", "11.0.0.8", 24);
-  vlan_t *vlan10_SW2 = node_vlan_create(SW2, 10, "svi1/10", "10.0.0.9", 24);
-  vlan_t *vlan11_SW2 = node_vlan_create(SW2, 11, "svi1/11", "11.0.0.9", 24);
+  vlan_t *vlan10_SW2 = node_vlan_create(SW2, 10, "svi2/10", "10.0.0.9", 24);
+  vlan_t *vlan11_SW2 = node_vlan_create(SW2, 11, "svi2/11", "11.0.0.9", 24);
   // Setup VLAN 10 (Access Interfaces)
   node_interface_set_mode(SW1, "eth0/2", INTF_MODE_L2_ACCESS);
   node_interface_add_vlan_membership(SW1, "eth0/2", vlan10_SW1);
@@ -177,9 +177,9 @@ graph_t* graph_create_dual_switch_topology() {
   node_interface_set_mode(SW1, "eth0/5", INTF_MODE_L2_TRUNK);
   node_interface_add_vlan_membership(SW1, "eth0/5", vlan10_SW1);
   node_interface_add_vlan_membership(SW1, "eth0/5", vlan11_SW1);
-  node_interface_set_mode(SW2, "eth0/7", INTF_MODE_L2_TRUNK);
-  node_interface_add_vlan_membership(SW2, "eth0/7", vlan10_SW2);
-  node_interface_add_vlan_membership(SW2, "eth0/7", vlan11_SW2);
+  node_interface_set_mode(SW2, "eth0/14", INTF_MODE_L2_TRUNK);
+  node_interface_add_vlan_membership(SW2, "eth0/14", vlan10_SW2);
+  node_interface_add_vlan_membership(SW2, "eth0/14", vlan11_SW2);
   // And, we're done.
   return topo;
 }
