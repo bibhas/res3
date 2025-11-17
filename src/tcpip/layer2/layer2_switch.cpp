@@ -58,7 +58,7 @@ int layer2_switch_recv_frame_bytes(node_t *n, interface_t *iintf, uint8_t *frame
 
 // Egress
 
-bool layer2_qualify_send_frame_on_interface(interface_t *intf, ether_hdr_t *ethhdr) {
+bool layer2_switch_qualify_send_frame_on_interface(interface_t *intf, ether_hdr_t *ethhdr) {
   EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface param", false);
   EXPECT_RETURN_BOOL(ethhdr != nullptr, "Empty ethernet header param", false);
   if (INTF_MODE(intf) == INTF_MODE_L3) {
@@ -86,7 +86,7 @@ int layer2_switch_send_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame,
   EXPECT_RETURN_VAL(n != nullptr, "Empty node ptr param", -1);
   EXPECT_RETURN_VAL(intf != nullptr, "Empty node ptr param", -1);
   EXPECT_RETURN_VAL(frame != nullptr, "Empty packet ptr param", -1);
-  if (!layer2_qualify_send_frame_on_interface(intf, (ether_hdr_t *)frame)) {
+  if (!layer2_switch_qualify_send_frame_on_interface(intf, (ether_hdr_t *)frame)) {
     return 0;
   }
   ether_hdr_t *ether_hdr = (ether_hdr_t *)frame;
@@ -140,7 +140,7 @@ int layer2_switch_flood_frame_bytes(node_t *n, interface_t *ignored, uint8_t *fr
     if (!n->intf[i]) { continue; }
     interface_t *intf = n->intf[i];
     if (intf == ignored) { continue; } // ignored interface
-    if (!layer2_qualify_send_frame_on_interface(intf, tagged_hdr)) {
+    if (!layer2_switch_qualify_send_frame_on_interface(intf, tagged_hdr)) {
       continue;
     }
     if (INTF_MODE(intf) == INTF_MODE_L2_ACCESS) {
