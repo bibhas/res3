@@ -215,7 +215,6 @@ int __layer2_promote(node_t *n, interface_t *iintf, ether_hdr_t *ether_hdr, uint
     // We need to delegate processing of this packet to L3
     uint8_t *pkt = (uint8_t *)(ether_hdr + 1);
     uint32_t pktlen = framelen - sizeof(ether_hdr_t); // We ignore FCS
-    printf("l3 promote...\n");
     NODE_NETSTACK(n).l3.promote(n, iintf, pkt, pktlen, hdr_type);
     return framelen;
   }
@@ -226,7 +225,6 @@ int __layer2_promote(node_t *n, interface_t *iintf, ether_hdr_t *ether_hdr, uint
 }
 
 void __layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, uint8_t *payload, uint32_t paylen, uint16_t ethertype) {
-  printf("l2 demote (ointf: %s)..\n", ointf->if_name);
   EXPECT_RETURN(n != nullptr, "Empty node param");
   EXPECT_RETURN(nxt_hop_addr != nullptr, "Empty next hop address param");
   // We will to handle ointf == nullptr case manually
@@ -281,7 +279,6 @@ void __layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, u
   arp_table_t *t = n->netprop.arp_table;
   arp_entry_t *arp_entry = nullptr;
   if (!arp_table_lookup(t, nxt_hop_addr, &arp_entry)) {
-    printf("arp lookup...\n");
     // No entry found. Create unresolved entry with pending lookups and send out ARP broadcast.
     bool resp = arp_table_add_unresolved_entry(t, nxt_hop_addr, &arp_entry);
     EXPECT_RETURN(resp == true, "arp_table_add_unresolved_entry failed");
@@ -294,7 +291,6 @@ void __layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, u
     EXPECT_RETURN(resp == true, "node_arp_send_broadcast_request failed");
   }
   else if (!arp_entry_is_resolved(arp_entry)) {
-    printf("arp pending...\n");
     // Entry found, but it is pending
     uint8_t *hdr_payload = payload - sizeof(ether_hdr_t);
     uint32_t hdr_paylen = paylen + sizeof(ether_hdr_t);
@@ -302,7 +298,6 @@ void __layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, u
     EXPECT_RETURN(resp == true, "arp_entry_add_pending_lookup failed");
   }
   else {
-    printf("arp found...\n");
     // Found resolved entry
     mac_addr_t *dst_mac = &arp_entry->mac_addr;
     mac_addr_t *src_mac = INTF_MAC_PTR(ointf);

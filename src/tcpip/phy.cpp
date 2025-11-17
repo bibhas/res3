@@ -91,7 +91,7 @@ void phy_receiver_thread_main(graph_t *topo) {
         // Do something with received data
         char *target_intf_name = (char *)__recv_buffer; // of size IF_NAME_SIZE
         printf("[%s] Read %lu bytes on %s\n", n->node_name, bytes, target_intf_name);
-        pcap_pkt_dump(__recv_buffer + CONFIG_IF_NAME_SIZE, bytes - CONFIG_IF_NAME_SIZE);
+        //pcap_pkt_dump(__recv_buffer + CONFIG_IF_NAME_SIZE, bytes - CONFIG_IF_NAME_SIZE);
         interface_t *target_intf = node_get_interface_by_name(n, target_intf_name);
         EXPECT_CONTINUE(target_intf != nullptr, "Packet received on unknown interface");
         resp = phy_node_receive_interface_frame_bytes(n, target_intf, __recv_buffer + CONFIG_IF_NAME_SIZE, bytes - CONFIG_IF_NAME_SIZE);
@@ -167,7 +167,7 @@ int __phy_node_send_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, ui
   int resp = sendto(fd, __send_buffer, framelen + auxlen, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr));
   EXPECT_RETURN_VAL(resp >= 0, "sendto failed", -1);
   printf("[%s] Sent %u bytes via %s\n", n->node_name, framelen + auxlen, intf->if_name);
-  pcap_pkt_dump(frame, framelen);
+  //pcap_pkt_dump(frame, framelen);
   // Cleanup
   close(fd);
   return resp - auxlen ; // Number of bytes sent ()
