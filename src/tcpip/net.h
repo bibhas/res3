@@ -56,6 +56,7 @@ enum interface_mode_t {
 
 struct interface_netprop_t {
   interface_mode_t mode = INTF_MODE_L2_ACCESS;
+  interface_t *delegate = nullptr;
   // L2 properties
   struct {
     mac_addr_t mac_addr;

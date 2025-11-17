@@ -13,14 +13,10 @@ bool arp_table_add_entry(arp_table_t *t, arp_entry_t *entry, glthread_t **pendin
 
 // I/O
 
-bool node_arp_send_broadcast_request(node_t *n, interface_t *ointf, ipv4_addr_t *ip_addr) {
+bool node_arp_send_broadcast_request(node_t *n, interface_t *intf, ipv4_addr_t *ip_addr) {
   EXPECT_RETURN_BOOL(n != nullptr, "Empty node param", false);
-  EXPECT_RETURN_BOOL(ointf != nullptr, "Empty output interface param", false);
+  EXPECT_RETURN_BOOL(intf != nullptr, "Empty output interface param", false);
   EXPECT_RETURN_BOOL(ip_addr != nullptr, "Empty ip address param", false);
-  printf(
-    "Sending broadcast request using interface: %s, for ip: " IPV4_ADDR_FMT "\n", 
-    ointf->if_name, IPV4_ADDR_BYTES_BE(*ip_addr)
-  );
   // Create unresolved arp table entry (when we get a reply, we'll fill it up)
   arp_entry_t *__entry = nullptr;
   arp_table_t *t = n->netprop.arp_table;
@@ -31,26 +27,53 @@ bool node_arp_send_broadcast_request(node_t *n, interface_t *ointf, ipv4_addr_t 
   // Allocate Ethernet frame wide enough to fit the ARP header
   uint32_t framelen = sizeof(ether_hdr_t) + sizeof(arp_hdr_t);
   ether_hdr_t *ether_hdr = (ether_hdr_t *)calloc(1, framelen);
-  // Fill out Ethernet header fields
-  ether_hdr_set_src_mac(ether_hdr, INTF_MAC_PTR(ointf)); // our intf MAC
-  mac_addr_t broadcast_mac = {0};
-  mac_addr_fill_broadcast(&broadcast_mac);           // broadcast MAC address
-  ether_hdr_set_dst_mac(ether_hdr, &broadcast_mac);
-  ether_hdr_set_type(ether_hdr, ETHER_TYPE_ARP);
-  // Fill out ARP header fields
-  arp_hdr_t *arp_hdr = (arp_hdr_t *)(ether_hdr + 1);
-  arp_hdr_set_hw_type(arp_hdr, ARP_HW_TYPE_ETHERNET);
-  arp_hdr_set_proto_type(arp_hdr, ETHER_TYPE_IPV4);  // PTYPE shares field values with ETHER_TYPE
-  arp_hdr_set_hw_addr_len(arp_hdr, 6);               // 6 byte MAC address
-  arp_hdr_set_proto_addr_len(arp_hdr, 4);            // 4 byte IP address
-  arp_hdr_set_op_code(arp_hdr, ARP_OP_CODE_REQUEST);
-  arp_hdr_set_src_mac(arp_hdr, INTF_MAC_PTR(ointf));
-  arp_hdr_set_src_ip(arp_hdr, INTF_IP_PTR(ointf)->value);
-  arp_hdr_set_dst_mac(arp_hdr, MAC_ADDR_PTR_ZEROED);
-  arp_hdr_set_dst_ip(arp_hdr, ip_addr->value); // <- The IPv4 address for which we want to know the MAC address
-  // Pass frame to layer 1
-  int resp = NODE_NETSTACK(n).phy.send(n, ointf, (uint8_t *)ether_hdr, framelen);
-  EXPECT_RETURN_BOOL((uint32_t)resp == framelen, "NODE_NETSTACK(n).phy.send failed", false);
+  // Send function (with SVIs, we will need to forward frames via multiple interfaces in the VLAN)
+  auto send_fn = [&](interface_t *ointf) -> bool {
+    /*
+    printf(
+      "Sending broadcast request using interface: %s, for ip: " IPV4_ADDR_FMT "\n", 
+      ointf->if_name, IPV4_ADDR_BYTES_BE(*ip_addr)
+    );
+    */
+    // Fill out Ethernet header fields
+    ether_hdr_set_src_mac(ether_hdr, INTF_MAC_PTR(ointf)); // our intf MAC
+    mac_addr_t broadcast_mac = {0};
+    mac_addr_fill_broadcast(&broadcast_mac);           // broadcast MAC address
+    ether_hdr_set_dst_mac(ether_hdr, &broadcast_mac);
+    ether_hdr_set_type(ether_hdr, ETHER_TYPE_ARP);
+    // Fill out ARP header fields
+    arp_hdr_t *arp_hdr = (arp_hdr_t *)(ether_hdr + 1);
+    arp_hdr_set_hw_type(arp_hdr, ARP_HW_TYPE_ETHERNET);
+    arp_hdr_set_proto_type(arp_hdr, ETHER_TYPE_IPV4);  // PTYPE shares field values with ETHER_TYPE
+    arp_hdr_set_hw_addr_len(arp_hdr, 6);               // 6 byte MAC address
+    arp_hdr_set_proto_addr_len(arp_hdr, 4);            // 4 byte IP address
+    arp_hdr_set_op_code(arp_hdr, ARP_OP_CODE_REQUEST);
+    arp_hdr_set_src_mac(arp_hdr, INTF_MAC_PTR(ointf));
+    arp_hdr_set_src_ip(arp_hdr, INTF_IP_PTR(ointf)->value);
+    arp_hdr_set_dst_mac(arp_hdr, MAC_ADDR_PTR_ZEROED);
+    arp_hdr_set_dst_ip(arp_hdr, ip_addr->value); // <- The IPv4 address for which we want to know the MAC address
+    // Pass frame to layer 1
+    int resp = NODE_NETSTACK(n).phy.send(n, ointf, (uint8_t *)ether_hdr, framelen);
+    EXPECT_RETURN_BOOL((uint32_t)resp == framelen, "NODE_NETSTACK(n).phy.send failed", false);
+    return true;
+  };
+  if (INTF_MODE(intf) == INTF_MODE_L3_SVI) {
+    for (int i = 0; i < CONFIG_MAX_INTF_PER_NODE; i++) {
+      if (!n->intf[i]) { continue; }
+      interface_t *candidate = n->intf[i];
+      if (candidate == intf) { continue; } // Ignore self
+      uint16_t vlan_id = INTF_NETPROP(intf).l2.vlan_memberships[0];
+      if (!interface_test_vlan_membership(candidate, vlan_id)) { continue; } // Not in VLAN
+      if (!INTF_IN_L2_MODE(candidate)) { continue; }
+      if (INTF_MODE(candidate) == INTF_MODE_L3_SVI) { continue; } // This isn't possible, still, just for sanity
+      bool resp = send_fn(candidate);
+      EXPECT_RETURN_BOOL(resp == true, "senf_fn failed", false);
+    }
+  }
+  else {
+    bool resp = send_fn(intf);
+    EXPECT_RETURN_BOOL(resp == true, "senf_fn failed", false);
+  }
   free(ether_hdr);
   return true;
 }
@@ -97,8 +120,15 @@ bool node_arp_send_reply_frame(node_t *n, interface_t *ointf, ether_hdr_t *in_et
   arp_hdr_set_src_mac(out_arp_hdr, INTF_MAC_PTR(ointf));
   arp_hdr_set_src_ip(out_arp_hdr, INTF_IP_PTR(ointf)->value);
   // Send out packet
-  int resp = NODE_NETSTACK(n).phy.send(n, ointf, (uint8_t *)out_ether_hdr, out_framelen);
-  EXPECT_RETURN_BOOL(resp == (int)out_framelen, "NODE_NETSTACK(n).phy.send failed", false);
+  if (INTF_MODE(ointf) == INTF_MODE_L3_SVI && INTF_NETPROP(ointf).delegate != nullptr) {
+    // If the outgoing interface is a logical SVI, then we need to reply using its delegate interface
+    int resp = NODE_NETSTACK(n).phy.send(n, INTF_NETPROP(ointf).delegate, (uint8_t *)out_ether_hdr, out_framelen);
+    EXPECT_RETURN_BOOL(resp == (int)out_framelen, "NODE_NETSTACK(n).phy.send failed", false);
+  }
+  else {
+    int resp = NODE_NETSTACK(n).phy.send(n, ointf, (uint8_t *)out_ether_hdr, out_framelen);
+    EXPECT_RETURN_BOOL(resp == (int)out_framelen, "NODE_NETSTACK(n).phy.send failed", false);
+  }
   free(out_ether_hdr);
   return true;
 }
@@ -109,6 +139,9 @@ bool node_arp_recv_reply_frame(node_t *n, interface_t *iintf, ether_hdr_t *hdr) 
   EXPECT_RETURN_BOOL(hdr != nullptr, "Empty ethernet header param", false);
   printf("[%s] Received ARP reply!\n", n->node_name);
   arp_hdr_t *arp_hdr = (arp_hdr_t *)(hdr + 1);
+  if (INTF_MODE(iintf) == INTF_MODE_L3_SVI) {
+    return arp_table_process_reply(n->netprop.arp_table, arp_hdr, INTF_NETPROP(iintf).delegate);
+  }
   return arp_table_process_reply(n->netprop.arp_table, arp_hdr, iintf);
 }
 
@@ -131,6 +164,7 @@ bool arp_table_process_reply(arp_table_t *t, arp_hdr_t *hdr, interface_t *intf) 
   arp_entry->mac_addr = arp_hdr_read_src_mac(hdr);
   glthread_t *curr = nullptr;
   strncpy((char *)arp_entry->oif_name, (char *)intf->if_name, CONFIG_IF_NAME_SIZE);
+  //printf("[%s] arp_table_process_reply got for intf: %s\n", intf->att_node->node_name, intf->if_name);
   // Process all pending lookups
   GLTHREAD_FOREACH_BEGIN(&arp_entry->aod.pending_lookups, curr) {
     arp_lookup_t *lookup = arp_lookup_ptr_from_arp_entry_glue(curr);

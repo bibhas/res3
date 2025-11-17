@@ -7,6 +7,7 @@
 #include "arp.h"
 #include "mac.h"
 #include "phy.h"
+#include "pcap.h"
 
 int layer2_switch_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen);
 
@@ -279,9 +280,11 @@ void __layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, u
     ether_hdr_set_dst_mac(hdr, dst_mac);
     ether_hdr_set_type(hdr, ethertype);
     // Send packet via phy
+    interface_t *phy_ointf = node_get_interface_by_name(n, arp_entry->oif_name);
+    EXPECT_RETURN(phy_ointf != nullptr, "node_get_interface_by_name failed");
     uint32_t pktlen = sizeof(ether_hdr_t) + paylen;
     uint8_t *pkt = (uint8_t *)hdr;
-    int sentlen = NODE_NETSTACK(n).phy.send(n, ointf, pkt, pktlen);
+    int sentlen = NODE_NETSTACK(n).phy.send(n, phy_ointf, pkt, pktlen);
     EXPECT_RETURN(sentlen == pktlen, "NODE_NETSTACK(n).phy.send failed");
   }
 }
@@ -417,7 +420,9 @@ int layer2_switch_flood_frame_bytes(node_t *n, interface_t *ignored, uint8_t *fr
     }
     else if (INTF_MODE(intf) == INTF_MODE_L3_SVI) {
       // Promote untagged frame to layer2 (will handle ARP broadcast + l3 promotion)
+      INTF_NETPROP(intf).delegate = ignored;
       int resp = NODE_NETSTACK(n).l2.promote(n, intf, untagged_hdr, untagged_framelen);
+      INTF_NETPROP(intf).delegate = nullptr;
       EXPECT_CONTINUE(resp == untagged_framelen, "NODE_NETSTACK(n).l2.promote failed");
       acc += resp;
     }
@@ -446,7 +451,15 @@ int layer2_switch_recv_frame_bytes(node_t *n, interface_t *iintf, uint8_t *frame
     // Found entry in MAC table
     interface_t *ointf = node_get_interface_by_name(n, (const char *)mac_entry->oif_name);
     EXPECT_RETURN_VAL(ointf != nullptr, "node_get_interface_by_name failed", -1);
-    return layer2_switch_send_frame_bytes(n, ointf, frame, framelen);
+    if (INTF_MODE(ointf) == INTF_MODE_L3_SVI) {
+      INTF_NETPROP(ointf).delegate = iintf;
+      bool resp = layer2_switch_send_frame_bytes(n, ointf, frame, framelen);
+      INTF_NETPROP(ointf).delegate = nullptr;
+      return resp;
+    }
+    else {
+      return layer2_switch_send_frame_bytes(n, ointf, frame, framelen);
+    }
   }
   // If not, we will flood all interfaces like we already do below.
   return layer2_switch_flood_frame_bytes(n, iintf, frame, framelen);

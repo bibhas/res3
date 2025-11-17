@@ -45,9 +45,13 @@ void __layer3_demote(node_t *n, uint8_t *payload, uint32_t paylen, uint8_t prot,
   free(buffer);
 }
 
-void layer3_recv_ipv4_pkt(node_t *n, interface_t *intf, ipv4_hdr_t *hdr, uint32_t pktlen) {
+void __layer3_promote(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t pktlen, uint16_t ether_type) {
+  if (ether_type != ETHER_TYPE_IPV4) {
+    // We only accept IPV4 packets
+    return;
+  } 
+  ipv4_hdr_t *hdr = (ipv4_hdr_t *)pkt;
   EXPECT_RETURN(n != nullptr, "Empty node param");
-  //EXPECT_RETURN(intf != nullptr, "Empty interface param");
   EXPECT_RETURN(hdr != nullptr, "Empty pkt header param");
   // Check if we can find an entry for the destination address in the routing table
   ipv4_addr_t dst_addr = ipv4_hdr_read_dst_addr(hdr);
@@ -70,27 +74,6 @@ void layer3_recv_ipv4_pkt(node_t *n, interface_t *intf, ipv4_hdr_t *hdr, uint32_
     NODE_NETSTACK(n).l2.demote(n, &rt_entry->gw.ip, ointf, (uint8_t *)hdr, pktlen, ETHER_TYPE_IPV4);
     return;
   }
-  else if (rt_entry->is_direct && rt_entry->oif.configured) {
-    // SVI routes are direct but have a specified outgoing interface
-    interface_t *ointf = node_get_interface_by_name(n, (const char *)rt_entry->oif.name);
-    EXPECT_RETURN(ointf != nullptr, "node_get_interface_by_name failed");
-    EXPECT_RETURN(INTF_MODE(ointf) == INTF_MODE_L3_SVI, "Encountered non-SVI local interface!");
-    ipv4_hdr_set_ttl(hdr, ipv4_hdr_read_ttl(hdr) - 1);
-    if (ipv4_hdr_read_ttl(hdr) == 0) {
-      printf("TTL == 0\n");
-      return; // drop 
-    }
-    if (rt_entry->gw.configured) {
-      // A GW address has been configured for this SVI (use that as the next hop)
-      NODE_NETSTACK(n).l2.demote(n, &rt_entry->gw.ip, ointf, (uint8_t *)hdr, pktlen, ETHER_TYPE_IPV4);
-    }
-    else {
-      // No GW address has been configured for this SVI. In this we expect the destination to be within the
-      // broadcast domain. Use that as the next hop address.
-      NODE_NETSTACK(n).l2.demote(n, &dst_addr, ointf, (uint8_t *)hdr, pktlen, ETHER_TYPE_IPV4);
-    }
-    return;
-  }
   // Local address?
   ipv4_addr_t dest_addr = ipv4_hdr_read_dst_addr(hdr);
   ipv4_addr_t src_addr = ipv4_hdr_read_src_addr(hdr);
@@ -109,16 +92,29 @@ void layer3_recv_ipv4_pkt(node_t *n, interface_t *intf, ipv4_hdr_t *hdr, uint32_
     NODE_NETSTACK(n).l5.promote(n, intf, payload, payloadsize, &src_addr, prot);
     return;
   }
+  else if (rt_entry->is_direct && rt_entry->oif.configured) {
+    // SVI routes are direct but have a specified outgoing interface
+    interface_t *ointf = node_get_interface_by_name(n, (const char *)rt_entry->oif.name);
+    EXPECT_RETURN(ointf != nullptr, "node_get_interface_by_name failed");
+    EXPECT_RETURN(INTF_MODE(ointf) == INTF_MODE_L3_SVI, "Encountered non-SVI local interface!");
+    ipv4_hdr_set_ttl(hdr, ipv4_hdr_read_ttl(hdr) - 1);
+    if (ipv4_hdr_read_ttl(hdr) == 0) {
+      printf("TTL == 0\n");
+      return; // drop 
+    }
+    if (rt_entry->gw.configured && !node_is_local_address(n, &rt_entry->gw.ip)) {
+      // A GW address has been configured for this SVI (use that as the next hop)
+      NODE_NETSTACK(n).l2.demote(n, &rt_entry->gw.ip, ointf, (uint8_t *)hdr, pktlen, ETHER_TYPE_IPV4);
+    }
+    else {
+      // No GW address has been configured for this SVI. In this we expect the destination to be within the
+      // broadcast domain. Use that as the next hop address.
+      NODE_NETSTACK(n).l2.demote(n, &dst_addr, ointf, (uint8_t *)hdr, pktlen, ETHER_TYPE_IPV4);
+    }
+    return;
+  }
   // Local subnet
   NODE_NETSTACK(n).l2.demote(n, &dest_addr, nullptr, (uint8_t *)hdr, pktlen, ETHER_TYPE_IPV4);
-}
-
-void __layer3_promote(node_t *n, interface_t *intf, uint8_t *pkt, uint32_t pktlen, uint16_t ether_type) {
-  if (ether_type != ETHER_TYPE_IPV4) {
-    // We only accept IPV4 packets
-    return;
-  } 
-  return layer3_recv_ipv4_pkt(n, intf, (ipv4_hdr_t *)pkt, pktlen);
 }
 
 #pragma mark -
