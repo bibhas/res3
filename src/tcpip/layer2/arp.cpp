@@ -28,7 +28,7 @@ bool node_arp_send_broadcast_request(node_t *n, interface_t *intf, ipv4_addr_t *
   uint32_t framelen = sizeof(ether_hdr_t) + sizeof(arp_hdr_t);
   ether_hdr_t *ether_hdr = (ether_hdr_t *)calloc(1, framelen + sizeof(vlan_tag_t)); // Extra room for possible tag
   // Send function (with SVIs, we will need to forward frames via multiple interfaces in the VLAN)
-  auto send_fn = [&](interface_t *ointf, uint16_t vlan_id) -> bool {
+  auto send_fn = [&, intf](interface_t *ointf, uint16_t vlan_id) -> bool {
     /*
     printf(
       "Sending broadcast request using interface: %s, for ip: " IPV4_ADDR_FMT "\n",
@@ -64,7 +64,9 @@ bool node_arp_send_broadcast_request(node_t *n, interface_t *intf, ipv4_addr_t *
     arp_hdr_set_proto_addr_len(arp_hdr, 4);            // 4 byte IP address
     arp_hdr_set_op_code(arp_hdr, ARP_OP_CODE_REQUEST);
     arp_hdr_set_src_mac(arp_hdr, INTF_MAC_PTR(ointf));
-    arp_hdr_set_src_ip(arp_hdr, INTF_IP_PTR(ointf)->value);
+    // Use SVI's IP if broadcasting from SVI, otherwise use interface's own IP
+    ipv4_addr_t *src_ip = (INTF_MODE(intf) == INTF_MODE_L3_SVI) ? INTF_IP_PTR(intf) : INTF_IP_PTR(ointf);
+    arp_hdr_set_src_ip(arp_hdr, src_ip->value);
     arp_hdr_set_dst_mac(arp_hdr, MAC_ADDR_PTR_ZEROED);
     arp_hdr_set_dst_ip(arp_hdr, ip_addr->value); // <- The IPv4 address for which we want to know the MAC address
     // Pass frame to layer 1

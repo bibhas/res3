@@ -118,7 +118,7 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
       // We won't accept any VLAN tagged frames in L3 mode.
       // This is to separate the broadcast domain from spilling over.
       printf("Reject: L3 and tagged\n");
-      return false; 
+      return false;
     }
     // We will only respond if the frame is specially intended for this
     // interface (based on the dest MAC) or it's a broadcast MAC address.
@@ -127,6 +127,9 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
       *vlan_id = 0;
       return true;
     }
+    // Frame not addressed to us - reject it
+    printf("Reject: L3 MAC mismatch\n");
+    return false;
   }
   else if (INTF_IN_L2_MODE(intf) && INTF_MODE(intf) != INTF_MODE_L3_SVI) {
     if (INTF_NETPROP(intf).l2.vlan_memberships[0] == 0) {
