@@ -174,7 +174,7 @@ bool node_arp_recv_reply_frame(node_t *n, interface_t *iintf, ether_hdr_t *hdr) 
   EXPECT_RETURN_BOOL(n != nullptr, "Empty node param", false);
   EXPECT_RETURN_BOOL(iintf != nullptr, "Empty input interface param", false);
   EXPECT_RETURN_BOOL(hdr != nullptr, "Empty ethernet header param", false);
-  printf("[%s] Received ARP reply!\n", n->node_name);
+  LOG_DEBUG("[%s] Received ARP reply!\n", n->node_name);
   arp_hdr_t *arp_hdr = (arp_hdr_t *)(hdr + 1);
   if (INTF_MODE(iintf) == INTF_MODE_L3_SVI) {
     return arp_table_process_reply(n->netprop.arp_table, arp_hdr, INTF_NETPROP(iintf).delegate);

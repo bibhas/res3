@@ -44,6 +44,7 @@ utils_add_executable(tests
   SOURCES "tests/tests_main.cpp"
           "tests/nettests.cpp"
           "tests/utiltests.cpp"
+          "tests/endtoendtests.cpp"
           # Layer 2
           "layer2/tests/arptests.cpp"
           "layer2/tests/layer2tests.cpp"
