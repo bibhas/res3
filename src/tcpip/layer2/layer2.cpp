@@ -239,6 +239,11 @@ void __layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, u
     bool resp = node_get_interface_matching_subnet(n, nxt_hop_addr, &ointf); // <-- Overwrites ointf
     EXPECT_RETURN(resp == true, "node_get_interface_matching_subnet failed");
   }
+  // Capture VLAN ID if routing from an SVI
+  uint16_t vlan_id = 0;
+  if (INTF_MODE(ointf) == INTF_MODE_L3_SVI) {
+    vlan_id = INTF_NETPROP(ointf).l2.vlan_memberships[0];
+  }
   // Resolve src and dst mac addresses
   auto pending_lookup_processing_cb = [n, ethertype](arp_entry_t *entry, arp_lookup_t *pending) {
     uint8_t *payload = (uint8_t *)(pending + 1);
@@ -257,9 +262,17 @@ void __layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, u
     ether_hdr_set_src_mac(hdr, src_mac);
     // Set ethertype field
     ether_hdr_set_type(hdr, ethertype);
+    // Tag frame if sending over trunk interface
+    uint32_t actual_paylen = paylen;
+    if (INTF_MODE(ointf) == INTF_MODE_L2_TRUNK && pending->vlan_id != 0) {
+      // Need to tag the frame
+      ether_hdr_t *tagged_hdr = ether_hdr_tag_vlan(hdr, paylen, pending->vlan_id, &actual_paylen);
+      EXPECT_RETURN(tagged_hdr != nullptr, "ether_hdr_tag_vlan failed");
+      payload = (uint8_t *)tagged_hdr;
+    }
     // Finally, send off the packet
-    int sentlen = NODE_NETSTACK(n).phy.send(n, ointf, payload, paylen);
-    EXPECT_RETURN(sentlen == paylen, "NODE_NETSTACK(n).phy.send failed");
+    int sentlen = NODE_NETSTACK(n).phy.send(n, ointf, payload, actual_paylen);
+    EXPECT_RETURN(sentlen == actual_paylen, "NODE_NETSTACK(n).phy.send failed");
     // No need to free arp_lookup_t (will be done internally)
   };
   arp_table_t *t = n->netprop.arp_table;
@@ -272,7 +285,7 @@ void __layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, u
     EXPECT_RETURN(arp_entry_is_resolved(arp_entry) == false, "arp_table_add_unresolved_entry failed");
     uint8_t *hdr_payload = payload - sizeof(ether_hdr_t);
     uint32_t hdr_paylen = paylen + sizeof(ether_hdr_t);
-    resp = arp_entry_add_pending_lookup(arp_entry, hdr_payload, hdr_paylen, pending_lookup_processing_cb);
+    resp = arp_entry_add_pending_lookup(arp_entry, hdr_payload, hdr_paylen, pending_lookup_processing_cb, vlan_id);
     EXPECT_RETURN(resp == true, "arp_entry_add_pending_lookup failed");
     resp = node_arp_send_broadcast_request(n, ointf, nxt_hop_addr);
     EXPECT_RETURN(resp == true, "node_arp_send_broadcast_request failed");
@@ -282,7 +295,7 @@ void __layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, u
     // Entry found, but it is pending
     uint8_t *hdr_payload = payload - sizeof(ether_hdr_t);
     uint32_t hdr_paylen = paylen + sizeof(ether_hdr_t);
-    bool resp = arp_entry_add_pending_lookup(arp_entry, hdr_payload, hdr_paylen, pending_lookup_processing_cb);
+    bool resp = arp_entry_add_pending_lookup(arp_entry, hdr_payload, hdr_paylen, pending_lookup_processing_cb, vlan_id);
     EXPECT_RETURN(resp == true, "arp_entry_add_pending_lookup failed");
   }
   else {
@@ -301,6 +314,13 @@ void __layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, u
     EXPECT_RETURN(phy_ointf != nullptr, "node_get_interface_by_name failed");
     uint32_t pktlen = sizeof(ether_hdr_t) + paylen;
     uint8_t *pkt = (uint8_t *)hdr;
+    // Tag frame if sending over trunk interface
+    if (INTF_MODE(phy_ointf) == INTF_MODE_L2_TRUNK && vlan_id != 0) {
+      // Need to tag the frame
+      ether_hdr_t *tagged_hdr = ether_hdr_tag_vlan(hdr, pktlen, vlan_id, &pktlen);
+      EXPECT_RETURN(tagged_hdr != nullptr, "ether_hdr_tag_vlan failed");
+      pkt = (uint8_t *)tagged_hdr;
+    }
     int sentlen = NODE_NETSTACK(n).phy.send(n, phy_ointf, pkt, pktlen);
     EXPECT_RETURN(sentlen == pktlen, "NODE_NETSTACK(n).phy.send failed");
   }

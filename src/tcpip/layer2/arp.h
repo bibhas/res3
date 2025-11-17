@@ -82,6 +82,7 @@ struct arp_lookup_t {
   glthread_t arp_entry_glue;
   arp_lookup_processing_fn cb;
   uint32_t bufflen;
+  uint16_t vlan_id; // VLAN ID for tagging trunk frames (0 = no VLAN)
 };
 
 DEFINE_GLTHREAD_TO_STRUCT_FUNC(
@@ -103,7 +104,7 @@ bool arp_table_process_reply(arp_table_t *t, arp_hdr_t *hdr, interface_t *intf);
 
 // ARP entries
 
-bool arp_entry_add_pending_lookup(arp_entry_t *e, uint8_t *pay, uint32_t paylen, arp_lookup_processing_fn cb);
+bool arp_entry_add_pending_lookup(arp_entry_t *e, uint8_t *pay, uint32_t paylen, arp_lookup_processing_fn cb, uint16_t vlan_id);
 
 static inline bool arp_entry_is_resolved(arp_entry_t *entry) {
   EXPECT_RETURN_BOOL(entry != nullptr, "Empty entry param", false);

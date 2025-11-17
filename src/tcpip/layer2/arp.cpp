@@ -303,13 +303,14 @@ void arp_table_dump(arp_table_t *t) {
   GLTHREAD_FOREACH_END();
 }
 
-bool arp_entry_add_pending_lookup(arp_entry_t *e, uint8_t *pay, uint32_t paylen, arp_lookup_processing_fn cb) {
+bool arp_entry_add_pending_lookup(arp_entry_t *e, uint8_t *pay, uint32_t paylen, arp_lookup_processing_fn cb, uint16_t vlan_id) {
   EXPECT_RETURN_BOOL(e != nullptr, "Empty entry param", false);
   EXPECT_RETURN_BOOL(pay != nullptr, "Empty payload ptr param", false);
   uint32_t lookuplen = paylen + sizeof(arp_lookup_t);
   auto lookup = (arp_lookup_t *)calloc(1, lookuplen);
   lookup->cb = cb;
   lookup->bufflen = paylen;
+  lookup->vlan_id = vlan_id;
   memcpy((uint8_t *)(lookup + 1), pay, paylen);
   glthread_init(&lookup->arp_entry_glue);
   glthread_add_next(&e->aod.pending_lookups, &lookup->arp_entry_glue);
