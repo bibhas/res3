@@ -4,7 +4,7 @@
 #include "layer3/layer3.h"
 #include "layer2.h"
 #include "graph.h"
-#include "mac.h"
+#include "mac_table.h"
 #include "phy.h"
 #include "pcap.h"
 #include "vlan_tag.h"

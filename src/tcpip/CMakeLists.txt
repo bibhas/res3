@@ -11,7 +11,7 @@ set(common_sources
   "layer2/layer2_switch.cpp"
   "layer2/layer2_arp.cpp"
   "layer2/arp_table.cpp"
-  "layer2/mac.cpp"
+  "layer2/mac_table.cpp"
   # Layer 3
   "layer3/layer3.cpp"
   "layer3/rt.cpp"

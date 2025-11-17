@@ -3,7 +3,7 @@
 #include <arpa/inet.h>
 #include "graph.h"
 #include "net.h"
-#include "mac.h"
+#include "mac_table.h"
 #include "ether_hdr.h"
 #include "phy.h"
 

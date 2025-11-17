@@ -7,7 +7,7 @@
 #include "layer5/layer5.h"
 #include "layer2/layer2.h"
 #include "layer2/arp_table.h"
-#include "layer2/mac.h"
+#include "layer2/mac_table.h"
 #include "utils.h"
 #include "cli.h"
 

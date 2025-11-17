@@ -4,7 +4,7 @@
 #include "layer3/layer3.h"
 #include "layer2.h"
 #include "graph.h"
-#include "mac.h"
+#include "mac_table.h"
 #include "phy.h"
 #include "pcap.h"
 #include "ether_hdr.h"
@@ -17,7 +17,7 @@ int layer2_switch_send_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame,
 
 #pragma mark -
 
-// Layer 2 Switch I/O
+// Ingress
 
 int layer2_switch_recv_frame_bytes(node_t *n, interface_t *iintf, uint8_t *frame, uint32_t framelen) {
   EXPECT_RETURN_VAL(n != nullptr, "Empty node param", -1);
@@ -53,6 +53,10 @@ int layer2_switch_recv_frame_bytes(node_t *n, interface_t *iintf, uint8_t *frame
   // If not, we will flood all interfaces like we already do below.
   return layer2_switch_flood_frame_bytes(n, iintf, frame, framelen);
 }
+
+#pragma mark -
+
+// Egress
 
 bool layer2_qualify_send_frame_on_interface(interface_t *intf, ether_hdr_t *ethhdr) {
   EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface param", false);

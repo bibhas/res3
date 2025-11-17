@@ -3,7 +3,7 @@
 #include "net.h"
 #include "graph.h"
 #include "utils.h"
-#include "layer2/mac.h"
+#include "layer2/mac_table.h"
 #include "layer2/vlan_tag.h"
 #include "layer2/arp_table.h"
 

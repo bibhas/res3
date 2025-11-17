@@ -7,16 +7,53 @@
 #include "arp_table.h"
 #include "vlan_tag.h"
 #include "ether_hdr.h"
-#include "mac.h"
+#include "mac_table.h"
 #include "phy.h"
 #include "pcap.h"
 
-int layer2_switch_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen);
-void layer2_send_with_resolved_arp(node_t *n, arp_entry_t *entry, ether_hdr_t *hdr, uint32_t framelen, uint16_t ethertype, uint16_t vlan_id);
-
 #pragma mark -
 
-// Layer 2 processing
+// Ingress
+
+int layer2_node_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen) {
+  // Entry point into our TCP/IP stack
+  EXPECT_RETURN_VAL(n != nullptr, "Empty node param", -1);
+  EXPECT_RETURN_VAL(intf != nullptr, "Empty interface param", -1);
+  EXPECT_RETURN_VAL(frame != nullptr, "Empty frame ptr param", -1);
+  // First check if we should even consider this frame
+  ether_hdr_t *ether_hdr = (ether_hdr_t *)frame;
+  uint16_t vlan_id = 0; // <- Overwritten by qualify fn below
+  if (!layer2_qualify_recv_frame_on_interface(intf, ether_hdr, &vlan_id)) {
+    // Drop the frame
+    return framelen;
+  }
+  if (INTF_MODE(intf) == INTF_MODE_L2_ACCESS || INTF_MODE(intf) == INTF_MODE_L2_TRUNK) {
+    // Go ahead and act like the good little L2 switch that you are.
+    if (!ETHER_HDR_VLAN_TAGGED(ether_hdr)) {
+      // If not tagged, we need to tag an ingress frame (w/ `vlan_id`)
+      uint32_t new_framelen = 0; // <- Updated by fn below
+      ether_hdr_t *new_ether_hdr = ether_hdr_tag_vlan(ether_hdr, framelen, vlan_id, &new_framelen);
+      EXPECT_RETURN_VAL(new_ether_hdr != nullptr, "ether_hdr_tag_vlan failed", -1);
+      EXPECT_RETURN_VAL(new_framelen > framelen, "new_framelen too small", -1);
+      frame = (uint8_t *)new_ether_hdr;
+      framelen = new_framelen;
+    }
+    return layer2_switch_recv_frame_bytes(n, intf, frame, framelen);
+  }
+  else if (INTF_MODE(intf) == INTF_MODE_L3) { 
+    // Interface is configured in L3 mode
+    return NODE_NETSTACK(n).l2.promote(n, intf, ether_hdr, framelen);
+  }
+  else if (INTF_MODE(intf) == INTF_MODE_L3_SVI) {
+    // Not possible (frames cannot flow in through virtual interfaces)
+    LOG_ERR("[%s] L2 received frame on SVI interface! (%s)\n", n->node_name, intf->if_name);
+    return 0;
+  }
+  // Interface is not in a functional state. 
+  // Silently drop ingress frames.
+  // TODO: Probably add a hw counter to signal dropped packets (?)
+  return 0;
+}
 
 bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethhdr, uint16_t *vlan_id) {
   EXPECT_RETURN_BOOL(intf != nullptr, "Empty interface param", false);
@@ -88,9 +125,53 @@ bool layer2_qualify_recv_frame_on_interface(interface_t *intf, ether_hdr_t *ethh
   return true; // TODO: Change this
 }
 
+int layer2_promote(node_t *n, interface_t *iintf, ether_hdr_t *ether_hdr, uint32_t framelen) {
+  uint16_t hdr_type = ether_hdr_read_type(ether_hdr);
+  // Check if it's an ARP message
+  if (hdr_type == ETHER_TYPE_ARP) {
+    arp_hdr_t *arp_hdr = (arp_hdr_t *)(ether_hdr + 1);
+    uint16_t arp_op_code = arp_hdr_read_op_code(arp_hdr);
+    switch (arp_op_code) {
+      case ARP_OP_CODE_REQUEST: {
+        bool resp = node_arp_recv_broadcast_request_frame(n, iintf, ether_hdr);
+        EXPECT_RETURN_VAL(resp == true, "node_arp_recv_broadcast_request_frame failed", -1);
+        return framelen;
+      }
+      case ARP_OP_CODE_REPLY: {
+        bool resp = node_arp_recv_reply_frame(n, iintf, ether_hdr);
+        EXPECT_RETURN_VAL(resp == true, "node_arp_recv_reply_frame failed", -1);
+        return framelen;
+      }
+      default: {
+        printf("Unknown ARP op code received! Ignoring...\n");
+        return -1;
+      }
+    }
+  }
+  mac_addr_t dst_mac = ether_hdr_read_dst_mac(ether_hdr);
+  if (INTF_MODE(iintf) == INTF_MODE_L3_SVI && !MAC_ADDR_IS_EQUAL(dst_mac, INTF_NETPROP(iintf).l2.mac_addr)) {
+    printf(
+      "Droped because " MAC_ADDR_FMT " != " MAC_ADDR_FMT "\n", 
+      MAC_ADDR_BYTES_BE(dst_mac), MAC_ADDR_BYTES_BE(INTF_NETPROP(iintf).l2.mac_addr)
+    );
+    return framelen; // We can't process any frames not intended for us is this is an SVI
+  }
+  if (hdr_type == ETHER_TYPE_IPV4) {
+    // We need to delegate processing of this packet to L3
+    uint8_t *pkt = (uint8_t *)(ether_hdr + 1);
+    uint32_t pktlen = framelen - sizeof(ether_hdr_t); // We ignore FCS
+    NODE_NETSTACK(n).l3.promote(n, iintf, pkt, pktlen, hdr_type);
+    return framelen;
+  }
+  else {
+    ; // Discard
+  }
+  return -1;
+}
+
 #pragma mark -
 
-// Layer 2 I/O
+// Egress
 
 void layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, uint8_t *payload, uint32_t paylen, uint16_t ethertype) {
   EXPECT_RETURN(n != nullptr, "Empty node param");
@@ -147,89 +228,5 @@ void layer2_demote(node_t *n, ipv4_addr_t *nxt_hop_addr, interface_t *ointf, uin
     uint32_t framelen = sizeof(ether_hdr_t) + paylen;
     layer2_send_with_resolved_arp(n, arp_entry, hdr, framelen, ethertype, vlan_id);
   }
-}
-
-int layer2_promote(node_t *n, interface_t *iintf, ether_hdr_t *ether_hdr, uint32_t framelen) {
-  uint16_t hdr_type = ether_hdr_read_type(ether_hdr);
-  // Check if it's an ARP message
-  if (hdr_type == ETHER_TYPE_ARP) {
-    arp_hdr_t *arp_hdr = (arp_hdr_t *)(ether_hdr + 1);
-    uint16_t arp_op_code = arp_hdr_read_op_code(arp_hdr);
-    switch (arp_op_code) {
-      case ARP_OP_CODE_REQUEST: {
-        bool resp = node_arp_recv_broadcast_request_frame(n, iintf, ether_hdr);
-        EXPECT_RETURN_VAL(resp == true, "node_arp_recv_broadcast_request_frame failed", -1);
-        return framelen;
-      }
-      case ARP_OP_CODE_REPLY: {
-        bool resp = node_arp_recv_reply_frame(n, iintf, ether_hdr);
-        EXPECT_RETURN_VAL(resp == true, "node_arp_recv_reply_frame failed", -1);
-        return framelen;
-      }
-      default: {
-        printf("Unknown ARP op code received! Ignoring...\n");
-        return -1;
-      }
-    }
-  }
-  mac_addr_t dst_mac = ether_hdr_read_dst_mac(ether_hdr);
-  if (INTF_MODE(iintf) == INTF_MODE_L3_SVI && !MAC_ADDR_IS_EQUAL(dst_mac, INTF_NETPROP(iintf).l2.mac_addr)) {
-    printf(
-      "Droped because " MAC_ADDR_FMT " != " MAC_ADDR_FMT "\n", 
-      MAC_ADDR_BYTES_BE(dst_mac), MAC_ADDR_BYTES_BE(INTF_NETPROP(iintf).l2.mac_addr)
-    );
-    return framelen; // We can't process any frames not intended for us is this is an SVI
-  }
-  if (hdr_type == ETHER_TYPE_IPV4) {
-    // We need to delegate processing of this packet to L3
-    uint8_t *pkt = (uint8_t *)(ether_hdr + 1);
-    uint32_t pktlen = framelen - sizeof(ether_hdr_t); // We ignore FCS
-    NODE_NETSTACK(n).l3.promote(n, iintf, pkt, pktlen, hdr_type);
-    return framelen;
-  }
-  else {
-    ; // Discard
-  }
-  return -1;
-}
-
-int layer2_node_recv_frame_bytes(node_t *n, interface_t *intf, uint8_t *frame, uint32_t framelen) {
-  // Entry point into our TCP/IP stack
-  EXPECT_RETURN_VAL(n != nullptr, "Empty node param", -1);
-  EXPECT_RETURN_VAL(intf != nullptr, "Empty interface param", -1);
-  EXPECT_RETURN_VAL(frame != nullptr, "Empty frame ptr param", -1);
-  // First check if we should even consider this frame
-  ether_hdr_t *ether_hdr = (ether_hdr_t *)frame;
-  uint16_t vlan_id = 0; // <- Overwritten by qualify fn below
-  if (!layer2_qualify_recv_frame_on_interface(intf, ether_hdr, &vlan_id)) {
-    // Drop the frame
-    return framelen;
-  }
-  if (INTF_MODE(intf) == INTF_MODE_L2_ACCESS || INTF_MODE(intf) == INTF_MODE_L2_TRUNK) {
-    // Go ahead and act like the good little L2 switch that you are.
-    if (!ETHER_HDR_VLAN_TAGGED(ether_hdr)) {
-      // If not tagged, we need to tag an ingress frame (w/ `vlan_id`)
-      uint32_t new_framelen = 0; // <- Updated by fn below
-      ether_hdr_t *new_ether_hdr = ether_hdr_tag_vlan(ether_hdr, framelen, vlan_id, &new_framelen);
-      EXPECT_RETURN_VAL(new_ether_hdr != nullptr, "ether_hdr_tag_vlan failed", -1);
-      EXPECT_RETURN_VAL(new_framelen > framelen, "new_framelen too small", -1);
-      frame = (uint8_t *)new_ether_hdr;
-      framelen = new_framelen;
-    }
-    return layer2_switch_recv_frame_bytes(n, intf, frame, framelen);
-  }
-  else if (INTF_MODE(intf) == INTF_MODE_L3) { 
-    // Interface is configured in L3 mode
-    return NODE_NETSTACK(n).l2.promote(n, intf, ether_hdr, framelen);
-  }
-  else if (INTF_MODE(intf) == INTF_MODE_L3_SVI) {
-    // Not possible (frames cannot flow in through virtual interfaces)
-    LOG_ERR("[%s] L2 received frame on SVI interface! (%s)\n", n->node_name, intf->if_name);
-    return 0;
-  }
-  // Interface is not in a functional state. 
-  // Silently drop ingress frames.
-  // TODO: Probably add a hw counter to signal dropped packets (?)
-  return 0;
 }
 
