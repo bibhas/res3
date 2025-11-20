@@ -80,7 +80,7 @@ bool rt_lookup(rt_t *t, ipv4_addr_t *addr, rt_entry_t **resp) {
   EXPECT_RETURN_BOOL(resp != nullptr, "Empty resp entry ptr ptr param", false);
   *resp = nullptr;
   // TODO: Use a Trie to implement efficient searching
-  uint8_t max_mask = 0;
+  int32_t max_mask = -1;
   glthread_t *curr = nullptr;
   GLTHREAD_FOREACH_BEGIN(&t->rt_entries, curr) {
     rt_entry_t *entry = rt_entry_ptr_from_rt_glue(curr);
@@ -90,7 +90,7 @@ bool rt_lookup(rt_t *t, ipv4_addr_t *addr, rt_entry_t **resp) {
     }
     if (IPV4_ADDR_IS_EQUAL(candidate, entry->prefix.ip)) {
       if (max_mask < entry->prefix.mask) {
-        max_mask = entry->prefix.mask;
+        max_mask = (int32_t)entry->prefix.mask;
         *resp = entry;
       }
     }
