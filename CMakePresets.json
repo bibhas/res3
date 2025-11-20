@@ -24,7 +24,8 @@
       "cacheVariables" : {
         "CMAKE_COLOR_DIAGNOSTICS" : "ON",
         "CMAKE_EXPORT_COMPILE_COMMANDS" : "ON",
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION" : "ON"
       },
       "inherits": [
         "ccache_enabled"
