@@ -8,6 +8,7 @@
 // - Hybrid implementations (e.g., DIR-24-8)
 //
 // The tests are implementation-agnostic and test against the rt_* interface.
+// Edit by bibhas: Claude made mistake in one degenerate test case.
 
 #include "catch2.hpp"
 #include "layer3/rt.h"
