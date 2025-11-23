@@ -112,6 +112,10 @@ typedef struct ipv4_addr_t ipv4_addr_t;
 #define IPV4_ADDR_PTR_IS_EQUAL(IP0, IP1) \
   ((IP0)->value == (IP1)->value)
 
+// Reads left to right (MSB is 0th index, LSB is 31st)
+#define IPV4_ADDR_READ_BIT(ADDR, BIT) ((ADDR).value >> (31 - BIT)) & 0x1)
+#define IPV4_ADDR_PTR_READ_BIT(ADDR, BIT) (((ADDR)->value >> (31 - BIT)) & 0x1)
+
 bool ipv4_addr_try_parse(const char *addrstr, ipv4_addr_t *out);
 bool ipv4_addr_apply_mask(ipv4_addr_t *prefix, uint8_t mask, ipv4_addr_t *out);
 bool ipv4_addr_render(ipv4_addr_t *addr, char *out);

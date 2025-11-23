@@ -14,7 +14,7 @@ set(common_sources
   "layer2/mac_table.cpp"
   # Layer 3
   "layer3/layer3.cpp"
-  "layer3/rt.cpp"
+  "layer3/rt_comptrie.cpp"
   # Layer 5
   "layer5/layer5.cpp"
 )

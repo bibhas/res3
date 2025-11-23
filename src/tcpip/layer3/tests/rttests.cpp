@@ -49,9 +49,9 @@ static bool lookup_expects(rt_t *t, const char *addr_str,
   if (!rt_lookup(t, &addr, &entry)) {
     return false;
   }
-  
-  return IPV4_ADDR_IS_EQUAL(entry->prefix.ip, expected) && 
-         entry->prefix.mask == expected_mask;
+
+  return IPV4_ADDR_IS_EQUAL(*rt_entry_get_prefix_ip(entry), expected) &&
+         rt_entry_get_prefix_mask(entry) == expected_mask;
 }
 
 // Helper to verify lookup fails
@@ -764,7 +764,7 @@ TEST_CASE("RT: Exact match search", "[rt][exact]") {
     ipv4_addr_try_parse("10.1.0.0", &addr);
     REQUIRE(rt_lookup_exact(t, &addr, 16, &entry));
     REQUIRE(entry != nullptr);
-    REQUIRE(entry->prefix.mask == 16);
+    REQUIRE(rt_entry_get_prefix_mask(entry) == 16);
   }
   
   SECTION("Exact match fails for non-existent prefix length") {

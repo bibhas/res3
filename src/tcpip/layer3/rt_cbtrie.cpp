@@ -1,11 +1,11 @@
-// rt.cpp
+// rt_comptrie.cpp
 
 #include "rt.h"
 #include "graph.h"
 #include "utils.h"
 
 struct rt_t {
-  glthread_t rt_entries;
+  
 };
 
 struct rt_entry_t {
@@ -22,14 +22,7 @@ struct rt_entry_t {
     char name[CONFIG_IF_NAME_SIZE];
     bool configured;
   } oif;
-  glthread_t rt_glue;
 };
-
-DEFINE_GLTHREAD_TO_STRUCT_FUNC(
-  rt_entry_ptr_from_rt_glue,      // fn name
-  rt_entry_t,                     // return type
-  rt_glue                         // glthread_t field in rt_t
-);
 
 void rt_init(rt_t **t) {
   EXPECT_RETURN(t != nullptr, "Empty rt param");

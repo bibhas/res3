@@ -10,32 +10,7 @@ typedef struct rt_t rt_t;
 typedef struct rt_entry_t rt_entry_t;
 typedef struct interface_t interface_t;
 
-struct rt_t {
-  glthread_t rt_entries;
-};
-
-struct rt_entry_t {
-  struct {
-    ipv4_addr_t ip;
-    uint8_t mask;
-  } prefix;
-  bool is_direct;
-  struct {
-    ipv4_addr_t ip;
-    bool configured;
-  } gw;
-  struct {
-    char name[CONFIG_IF_NAME_SIZE];
-    bool configured;
-  } oif;
-  glthread_t rt_glue;
-};
-
-DEFINE_GLTHREAD_TO_STRUCT_FUNC(
-  rt_entry_ptr_from_rt_glue,      // fn name
-  rt_entry_t,                     // return type
-  rt_glue                         // glthread_t field in rt_t
-);
+// Routing Table
 
 void rt_init(rt_t **t);
 bool rt_add_direct_route(rt_t *t, ipv4_addr_t *addr, uint8_t mask);
@@ -46,5 +21,12 @@ bool rt_delete_entry(rt_t *t, ipv4_addr_t *addr, uint8_t mask);
 bool rt_clear(rt_t *t);
 void rt_dump(rt_t *t);
 
+// Routing Table entry
 
-
+ipv4_addr_t* rt_entry_get_prefix_ip(rt_entry_t *entry);
+uint8_t rt_entry_get_prefix_mask(rt_entry_t *entry);
+bool rt_entry_is_direct(rt_entry_t *entry);
+bool rt_entry_oif_is_configured(rt_entry_t *entry);
+const char* rt_entry_get_oif_name(rt_entry_t *entry);
+bool rt_entry_gw_is_configured(rt_entry_t *entry);
+ipv4_addr_t* rt_entry_get_gw_ip(rt_entry_t *entry);
