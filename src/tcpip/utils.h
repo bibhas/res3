@@ -24,6 +24,13 @@
 #define BYTES_FROM_BYTEARRAY_BE(ARR) \
   (ARR)[0], (ARR)[1], (ARR)[2], (ARR)[3], (ARR)[4], (ARR)[5]
 
+#define UINT32_MASK(VAL, MASK) \
+  ((uint32_t)((((uint64_t)1 << (MASK)) - 1) << (32 - (MASK))) & (VAL))
+
+#define UINT32_READ_BIT(VAL, INDX) \
+  (uint32_t)(VAL >> (31 - INDX) & 0x1)
+
+
 #pragma mark -
 
 // EXPECT assertions

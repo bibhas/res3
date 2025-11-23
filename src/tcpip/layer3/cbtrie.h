@@ -1,4 +1,0 @@
-// cbtrie.h
-
-#pragma once
-

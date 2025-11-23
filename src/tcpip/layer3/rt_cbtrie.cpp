@@ -1,19 +1,38 @@
-// rt_comptrie.cpp
+// rt_cbtrie.cpp
+// Routing table implementation using compressed binary trie
 
 #include "rt.h"
 #include "graph.h"
+#include "glthread.h"
 #include "utils.h"
 
+#define RT_RADIX 2
+
+typedef struct rt_node_t rt_node_t;
+typedef struct rt_t rt_t;
+typedef struct rt_entry_t rt_entry_t;
+
+#pragma mark -
+
+// Structs
+
 struct rt_t {
-  
+  rt_node_t *root_node = nullptr;
+  glthread_t entries;
+};
+
+struct rt_node_t {
+  uint32_t prefix;
+  uint32_t prefixmask;
+  rt_entry_t *entry = nullptr;
+  rt_node_t *child_nodes[RT_RADIX];
 };
 
 struct rt_entry_t {
   struct {
-    ipv4_addr_t ip;
+    ipv4_addr_t addr;
     uint8_t mask;
   } prefix;
-  bool is_direct;
   struct {
     ipv4_addr_t ip;
     bool configured;
@@ -22,52 +41,27 @@ struct rt_entry_t {
     char name[CONFIG_IF_NAME_SIZE];
     bool configured;
   } oif;
+  bool is_direct;
+  glthread_t rt_glue;
 };
+
+DEFINE_GLTHREAD_TO_STRUCT_FUNC(
+  rt_entry_ptr_from_rt_glue,      // fn name
+  rt_entry_t,                     // return type
+  rt_glue                         // glthread_t field in rt_entry_t
+);
+
+#pragma mark -
+
+// Functions
 
 void rt_init(rt_t **t) {
   EXPECT_RETURN(t != nullptr, "Empty rt param");
   auto resp = (rt_t *)calloc(1, sizeof(rt_t));
   EXPECT_RETURN(resp != nullptr, "calloc failed");
-  glthread_init(&resp->rt_entries);
+  resp->root_node = nullptr;
+  glthread_init(&resp->entries);
   *t = resp;
-}
-
-bool rt_add_direct_route(rt_t *t, ipv4_addr_t *addr, uint8_t mask) {
-  EXPECT_RETURN_BOOL(t != nullptr, "Empty rt param", false);
-  EXPECT_RETURN_BOOL(addr != nullptr, "Empty addr param", false);
-  rt_entry_t *rt_entry = nullptr;
-  if (rt_lookup_exact(t, addr, mask, &rt_entry)) {
-    // Already exists.
-    return false;
-#pragma unused(rt_entry)
-  }
-  auto entry = (rt_entry_t *)calloc(1, sizeof(rt_entry_t));
-  bool resp = ipv4_addr_apply_mask(addr, mask, &entry->prefix.ip);
-  entry->prefix.mask = mask;
-  entry->is_direct = true;
-  entry->oif.configured = false;
-  entry->gw.configured = false;
-  // Other fields are zeroed thanks to `calloc`
-  glthread_init(&entry->rt_glue);
-  glthread_add_next(&t->rt_entries, &entry->rt_glue);
-  return true;
-}
-
-bool rt_lookup_exact(rt_t *t, ipv4_addr_t *addr, uint8_t mask, rt_entry_t **resp) {
-  EXPECT_RETURN_BOOL(t != nullptr, "Empty table param", false);
-  EXPECT_RETURN_BOOL(addr != nullptr, "Empty address param", false);
-  EXPECT_RETURN_BOOL(resp != nullptr, "Empty resp ptr param", false);
-  glthread_t *curr = nullptr;
-  GLTHREAD_FOREACH_BEGIN(&t->rt_entries, curr) {
-    rt_entry_t *entry = rt_entry_ptr_from_rt_glue(curr);
-    if (IPV4_ADDR_IS_EQUAL(*addr, entry->prefix.ip) && mask == entry->prefix.mask) {
-      *resp = entry;
-      return true;
-    }
-  }
-  GLTHREAD_FOREACH_END();
-  *resp = nullptr;
-  return false;
 }
 
 bool rt_add_route(rt_t *t, ipv4_addr_t *addr, uint8_t mask, ipv4_addr_t *gw_ip, interface_t *ointf, bool is_direct) {
@@ -75,105 +69,47 @@ bool rt_add_route(rt_t *t, ipv4_addr_t *addr, uint8_t mask, ipv4_addr_t *gw_ip, 
   EXPECT_RETURN_BOOL(addr != nullptr, "Empty addr param", false);
   EXPECT_RETURN_BOOL(gw_ip != nullptr, "Empty gateway address param", false);
   EXPECT_RETURN_BOOL(ointf != nullptr, "Empty out interface ptr param", false);
-  rt_entry_t *rt_entry = nullptr;
-  if (rt_lookup_exact(t, addr, mask, &rt_entry)) {
-    // Already exists.
-    return false;
-#pragma unused(rt_entry)
-  }
-  auto entry = (rt_entry_t *)calloc(1, sizeof(rt_entry_t));
-  bool resp = ipv4_addr_apply_mask(addr, mask, &entry->prefix.ip);
-  entry->prefix.mask = mask;
-  entry->is_direct = is_direct;
-  entry->gw.ip = {.value = gw_ip->value};
-  entry->gw.configured = true;
-  strncpy((char *)entry->oif.name, (char *)ointf->if_name, CONFIG_IF_NAME_SIZE);
-  entry->oif.configured = true;
-  glthread_init(&entry->rt_glue);
-  glthread_add_next(&t->rt_entries, &entry->rt_glue);
-  return true;
+    
+  return false;
+}
+
+bool rt_add_direct_route(rt_t *t, ipv4_addr_t *addr, uint8_t mask) {
+  return rt_add_route(t, addr, mask, nullptr, nullptr, true);
+}
+
+bool rt_delete_entry(rt_t *t, ipv4_addr_t *addr, uint8_t mask) {
+  EXPECT_RETURN_BOOL(t != nullptr, "Empty rt param", false);
+  EXPECT_RETURN_BOOL(addr != nullptr, "Empty destination ip address param", false);
+  // ...
+  return false;
+}
+
+bool rt_clear(rt_t *t) {
+  EXPECT_RETURN_BOOL(t != nullptr, "Empty rt param", false);
+  // ...
+  return false;
+}
+
+bool rt_lookup_exact(rt_t *t, ipv4_addr_t *addr, uint8_t mask, rt_entry_t **resp) {
+  EXPECT_RETURN_BOOL(t != nullptr, "Empty table param", false);
+  EXPECT_RETURN_BOOL(addr != nullptr, "Empty address param", false);
+  EXPECT_RETURN_BOOL(resp != nullptr, "Empty resp ptr param", false);
+  // ...
+  return false;
 }
 
 bool rt_lookup(rt_t *t, ipv4_addr_t *addr, rt_entry_t **resp) {
   EXPECT_RETURN_BOOL(t != nullptr, "Empty table param", false);
   EXPECT_RETURN_BOOL(addr != nullptr, "Empty address param", false);
   EXPECT_RETURN_BOOL(resp != nullptr, "Empty resp entry ptr ptr param", false);
-  *resp = nullptr;
-  // TODO: Use a Trie to implement efficient searching
-  int32_t max_mask = -1;
-  glthread_t *curr = nullptr;
-  GLTHREAD_FOREACH_BEGIN(&t->rt_entries, curr) {
-    rt_entry_t *entry = rt_entry_ptr_from_rt_glue(curr);
-    ipv4_addr_t candidate;
-    if (!ipv4_addr_apply_mask(addr, entry->prefix.mask, &candidate)) {
-      continue; // Something happened, but we'll just ignore it
-    }
-    if (IPV4_ADDR_IS_EQUAL(candidate, entry->prefix.ip)) {
-      if (max_mask < entry->prefix.mask) {
-        max_mask = (int32_t)entry->prefix.mask;
-        *resp = entry;
-      }
-    }
-  }
-  GLTHREAD_FOREACH_END();
-  EXPECT_RETURN_BOOL(*resp != nullptr, "No entry found", false);
-  return true;
+  // ...
+  return false;
 }
 
-bool rt_delete_entry(rt_t *t, ipv4_addr_t *addr, uint8_t mask) {
-  EXPECT_RETURN_BOOL(t != nullptr, "Empty rt param", false);
-  EXPECT_RETURN_BOOL(addr != nullptr, "Empty destination ip address param", false);
-  glthread_t *curr = nullptr;
-  GLTHREAD_FOREACH_BEGIN(&t->rt_entries, curr) {
-    rt_entry_t *entry = rt_entry_ptr_from_rt_glue(curr);
-    if (!IPV4_ADDR_PTR_IS_EQUAL(&entry->prefix.ip, addr)) {
-      continue;
-    }
-    if (entry->prefix.mask != mask) {
-      continue;
-    }
-    // This is ok to do since curr is never the head of the thread (the
-    // glthread_t instance held by the owner).
-    bool resp = glthread_remove(curr);
-    EXPECT_RETURN_BOOL(resp == true, "glthread_remove failed", false);
-    free(entry);
-    return true;
-  }
-  GLTHREAD_FOREACH_END();
-  return false; // Didn't find entry
-}
-
-bool rt_clear(rt_t *t) {
-  EXPECT_RETURN_BOOL(t != nullptr, "Empty rt param", false);
-  glthread_t *curr = nullptr;
-  GLTHREAD_FOREACH_BEGIN(&t->rt_entries, curr) {
-    rt_entry_t *entry = rt_entry_ptr_from_rt_glue(curr); 
-    // This is ok to do since curr is never the head of the thread (the
-    // glthread_t instance held by the owner).
-    bool resp = glthread_remove(curr);
-    EXPECT_RETURN_BOOL(resp == true, "glthread_remove failed", false);
-    free(entry);
-  }
-  GLTHREAD_FOREACH_END();
-  return true; // All entries deleted
-}
 
 void rt_dump(rt_t *t) {
   EXPECT_RETURN(t != nullptr, "Empty rt param");
-  glthread_t *curr = nullptr;
-  GLTHREAD_FOREACH_BEGIN(&t->rt_entries, curr) {
-    rt_entry_t *entry = rt_entry_ptr_from_rt_glue(curr);
-    dump_line("Dest: " IPV4_ADDR_FMT "/%u ", IPV4_ADDR_BYTES_BE(entry->prefix.ip), entry->prefix.mask);
-    printf(" Direct?: %s", (entry->is_direct ? "true" : "false"));
-    if (entry->gw.configured) {
-      printf(" GW: " IPV4_ADDR_FMT, IPV4_ADDR_BYTES_BE(entry->gw.ip));
-    }
-    if (entry->oif.configured) {
-      printf(" OIF: %s", entry->oif.name);
-    }
-    printf("\n");
-  }
-  GLTHREAD_FOREACH_END();
+  // ...
 }
 
 #pragma mark -
@@ -181,7 +117,7 @@ void rt_dump(rt_t *t) {
 // Accessor functions for rt_entry_t
 
 ipv4_addr_t* rt_entry_get_prefix_ip(rt_entry_t *entry) {
-  return &entry->prefix.ip;
+  return &entry->prefix.addr;
 }
 
 uint8_t rt_entry_get_prefix_mask(rt_entry_t *entry) {
