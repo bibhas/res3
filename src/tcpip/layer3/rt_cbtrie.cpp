@@ -1,12 +1,15 @@
 // rt_cbtrie.cpp
 // Routing table implementation using compressed binary trie
 
+#include <algorithm>
 #include "rt.h"
 #include "graph.h"
 #include "glthread.h"
 #include "utils.h"
 
 #define RT_RADIX 2
+#define RT_NODE_DESCENT_LEFT 0
+#define RT_NODE_DESCENT_RIGHT 1
 
 typedef struct rt_node_t rt_node_t;
 typedef struct rt_t rt_t;
@@ -64,11 +67,18 @@ void rt_init(rt_t **t) {
   *t = resp;
 }
 
-static inline rt_node_t* rt_node_allocate(uint32_t prefix, uint8_t mask, rt_entry_t *entry = nullptr) {
+static inline rt_node_t* rt_node_allocate(rt_t *t, uint32_t prefix, uint8_t mask, rt_entry_t *entry = nullptr) {
   auto resp = (rt_node_t *)calloc(1, sizeof(rt_node_t));
   resp->prefix = prefix;
   resp->prefixlen = mask;
   resp->entry = entry;
+  if (entry != nullptr) {
+    // Registering entries here is ok because once a node is marked as key, it
+    // cannot be demoted to an intermediary node UNLESS it is deleted (which
+    // will automatically take care of unregistering said entry).
+    glthread_init(&entry->rt_glue);
+    glthread_add_next(&t->entries, &entry->rt_glue);
+  }
   return resp;
 }
 
@@ -88,8 +98,64 @@ static inline uint32_t rt_node_count_children(rt_node_t *n, rt_node_t **last_chi
 static inline bool rt_insert_entry(rt_t *t, rt_entry_t *entry) {
   EXPECT_RETURN_BOOL(t != nullptr, "Empty rt param", false);
   EXPECT_RETURN_BOOL(entry != nullptr, "Empty entry param", false);
-  // First, 
-  return false;
+  uint32_t entry_prefix = UINT32_MASK(entry->prefix.addr.value, entry->prefix.mask);
+  uint32_t entry_mask = entry->prefix.mask;
+  if (t->root_node == nullptr) {
+    t->root_node = rt_node_allocate(t, entry_prefix, entry_mask, entry);
+    return true;
+  }
+  rt_node_t *curr_node = t->root_node;
+  uint8_t curr_node_descent = RT_NODE_DESCENT_LEFT;
+  rt_node_t *parent_node = nullptr;
+  for (;;) {
+    int i = 0;
+    for (; i < std::min(curr_node->prefixlen, entry_mask); i++) {
+      if (UINT32_READ_BIT(curr_node->prefix, i) != UINT32_READ_BIT(entry_prefix, i)) {
+        break; // divergence detected at `i`
+      }
+    }
+    // We have three cases to consider:
+    //  - case 1 : divergence happens in [0, curr_node->prefixlen)
+    //  - case 2 : or, entry_prefix == curr_node->prefix
+    //  - case 3 : or, divergence happens in [curr_node->prefixlen, ...)
+    if (i < curr_node->prefixlen) {
+      // Perform splitting
+      bool splits_to_key_node = (i == entry_mask);
+      uint32_t node_prefix = UINT32_MASK(entry_prefix, i);
+      rt_node_t *split_node = rt_node_allocate(t, node_prefix, i, (splits_to_key_node ? entry : nullptr));
+      uint32_t diverged_bitval = UINT32_READ_BIT(curr_node->prefix, i);
+      split_node->child_nodes[diverged_bitval] = curr_node;
+      if (i < entry_mask) {
+        split_node->child_nodes[diverged_bitval] = rt_node_allocate(t, entry_prefix, entry_mask, entry);
+      }
+      curr_node = split_node;
+      if (parent_node) {
+        parent_node->child_nodes[curr_node_descent] = split_node;
+      }
+      else {
+        t->root_node = split_node;
+      }
+      return true;
+    }
+    else if (i == curr_node->prefixlen && i == entry_mask) {
+      curr_node->entry = entry;
+      // Normally, `rt_node_allocate` indirectly registers entries, but here we
+      // do so manually since we're reusing an existing node.
+      glthread_init(&entry->rt_glue);
+      glthread_add_next(&t->entries, &entry->rt_glue);
+      return true;
+    }
+    else {
+      uint32_t next_bitval = UINT32_READ_BIT(entry_prefix, i);
+      if (curr_node->child_nodes[next_bitval] == nullptr) {
+        curr_node->child_nodes[next_bitval] = rt_node_allocate(t, entry_prefix, entry_mask, entry);
+        return true;
+      }
+      parent_node = curr_node;
+      curr_node = curr_node->child_nodes[next_bitval];
+      curr_node_descent = next_bitval;
+    }
+  }
 }
 
 bool rt_add_route(rt_t *t, ipv4_addr_t *addr, uint8_t mask, ipv4_addr_t *gw, interface_t *ointf, bool is_direct) {
