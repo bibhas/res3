@@ -23,7 +23,7 @@ struct rt_t {
 
 struct rt_node_t {
   uint32_t prefix;
-  uint32_t prefixmask;
+  uint32_t prefixlen;
   rt_entry_t *entry = nullptr;
   rt_node_t *child_nodes[RT_RADIX];
 };
@@ -34,7 +34,7 @@ struct rt_entry_t {
     uint8_t mask;
   } prefix;
   struct {
-    ipv4_addr_t ip;
+    ipv4_addr_t addr;
     bool configured;
   } gw;
   struct {
@@ -64,13 +64,50 @@ void rt_init(rt_t **t) {
   *t = resp;
 }
 
-bool rt_add_route(rt_t *t, ipv4_addr_t *addr, uint8_t mask, ipv4_addr_t *gw_ip, interface_t *ointf, bool is_direct) {
+static inline rt_node_t* rt_node_allocate(uint32_t prefix, uint8_t mask, rt_entry_t *entry = nullptr) {
+  auto resp = (rt_node_t *)calloc(1, sizeof(rt_node_t));
+  resp->prefix = prefix;
+  resp->prefixlen = mask;
+  resp->entry = entry;
+  return resp;
+}
+
+static inline uint32_t rt_node_count_children(rt_node_t *n, rt_node_t **last_child = nullptr) {
+  uint32_t resp = 0;
+  for (int i = 0; i < RT_RADIX; i++) {
+    if (n->child_nodes[i] != nullptr) {
+      resp++;
+      if (last_child != nullptr) {
+        *last_child = n->child_nodes[i];
+      }
+    }
+  }
+  return resp;
+}
+
+static inline bool rt_insert_entry(rt_t *t, rt_entry_t *entry) {
+  EXPECT_RETURN_BOOL(t != nullptr, "Empty rt param", false);
+  EXPECT_RETURN_BOOL(entry != nullptr, "Empty entry param", false);
+  // First, 
+  return false;
+}
+
+bool rt_add_route(rt_t *t, ipv4_addr_t *addr, uint8_t mask, ipv4_addr_t *gw, interface_t *ointf, bool is_direct) {
   EXPECT_RETURN_BOOL(t != nullptr, "Empty rt param", false);
   EXPECT_RETURN_BOOL(addr != nullptr, "Empty addr param", false);
-  EXPECT_RETURN_BOOL(gw_ip != nullptr, "Empty gateway address param", false);
-  EXPECT_RETURN_BOOL(ointf != nullptr, "Empty out interface ptr param", false);
-    
-  return false;
+  auto entry = (rt_entry_t *)calloc(1, sizeof(rt_entry_t));
+  ipv4_addr_apply_mask(addr, mask, &entry->prefix.addr);
+  entry->prefix.mask = mask;
+  entry->is_direct = is_direct;
+  if (gw != nullptr) {
+    entry->gw.addr.value = gw->value;
+    entry->gw.configured = true;
+  }
+  if (ointf != nullptr) {
+    strncpy((char *)entry->oif.name, (char *)ointf->if_name, CONFIG_IF_NAME_SIZE);
+    entry->oif.configured = true;
+  }
+  return rt_insert_entry(t, entry);
 }
 
 bool rt_add_direct_route(rt_t *t, ipv4_addr_t *addr, uint8_t mask) {
@@ -141,5 +178,5 @@ bool rt_entry_gw_is_configured(rt_entry_t *entry) {
 }
 
 ipv4_addr_t* rt_entry_get_gw_ip(rt_entry_t *entry) {
-  return &entry->gw.ip;
+  return &entry->gw.addr;
 }
