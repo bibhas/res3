@@ -1,4 +1,5 @@
 // rt.cpp
+// Routing table implementation using linked list (doubly linked)
 
 #include "rt.h"
 #include "graph.h"
