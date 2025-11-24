@@ -336,7 +336,6 @@ try_lpm:
   return false;
 }
 
-
 void rt_dump(rt_t *t) {
   EXPECT_RETURN(t != nullptr, "Empty rt param");
   glthread_t *curr = nullptr;
