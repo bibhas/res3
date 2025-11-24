@@ -56,6 +56,13 @@ utils_add_executable(tests
           "layer5/tests/layer5tests.cpp"
 )
 
+utils_add_executable(rttests
+  EXTENDS tcpip_tests_base
+  LINKS Catch2
+  SOURCES "tests/tests_main.cpp"
+          "layer3/tests/rttests.cpp"
+)
+
 utils_add_executable(pcaptest
   EXTENDS tcpip_base
   SOURCES "tests/pcaptest.cpp" 
