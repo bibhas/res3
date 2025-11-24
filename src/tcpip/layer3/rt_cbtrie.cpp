@@ -290,13 +290,14 @@ bool rt_lookup_exact(rt_t *t, ipv4_addr_t *addr, uint8_t mask, rt_entry_t **resp
       *resp = curr_node->entry;
       return true;
     }
- 
-      uint32_t diverged_bitval = UINT32_READ_BIT(query_prefix, i);
-      curr_node = curr_node->child_nodes[diverged_bitval];
-      if (!curr_node) {
-        return false;
-      }
-
+    if (curr_node->prefixlen > query_mask) {
+      return false;
+    }
+    uint32_t diverged_bitval = UINT32_READ_BIT(query_prefix, i);
+    curr_node = curr_node->child_nodes[diverged_bitval];
+    if (!curr_node) {
+      return false;
+    }
   } 
 }
 
@@ -315,7 +316,7 @@ bool rt_lookup(rt_t *t, ipv4_addr_t *addr, rt_entry_t **resp) {
     int i = 0;
     for (; i < curr_node->prefixlen; i++) {
       if (UINT32_READ_BIT(curr_node->prefix, i) != UINT32_READ_BIT(query_prefix, i)) {
-        goto ret_false;
+        goto try_lpm;
       }
     }
     if (curr_node->entry != nullptr) {
@@ -324,10 +325,10 @@ bool rt_lookup(rt_t *t, ipv4_addr_t *addr, rt_entry_t **resp) {
     uint32_t diverged_bitval = UINT32_READ_BIT(query_prefix, i);
     curr_node = curr_node->child_nodes[diverged_bitval];
     if (!curr_node) {
-      goto ret_false;
+      goto try_lpm;
     }
   } 
-ret_false:
+try_lpm:
   if (candidate_stack_depth > -1) {
     *resp = candidate_stack[candidate_stack_depth]->entry;
     return true;
@@ -338,7 +339,20 @@ ret_false:
 
 void rt_dump(rt_t *t) {
   EXPECT_RETURN(t != nullptr, "Empty rt param");
-  // ...
+  glthread_t *curr = nullptr;
+  GLTHREAD_FOREACH_BEGIN(&t->entries, curr) {
+    rt_entry_t *entry = rt_entry_ptr_from_rt_glue(curr);
+    dump_line("Dest: " IPV4_ADDR_FMT "/%u ", IPV4_ADDR_BYTES_BE(entry->prefix.addr), entry->prefix.mask);
+    printf(" Direct?: %s", (entry->is_direct ? "true" : "false"));
+    if (entry->gw.configured) {
+      printf(" GW: " IPV4_ADDR_FMT, IPV4_ADDR_BYTES_BE(entry->gw.addr));
+    }
+    if (entry->oif.configured) {
+      printf(" OIF: %s", entry->oif.name);
+    }
+    printf("\n");
+  }
+  GLTHREAD_FOREACH_END();
 }
 
 #pragma mark -
